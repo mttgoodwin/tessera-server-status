@@ -7,6 +7,7 @@ tiles:
       info1: sensor.nas_response_time
       status2: sensor.proxmox_status
       info2: sensor.proxmox_response_time
+      uptime1: sensor.nas_uptime_30_days
       status3: sensor.pihole_status
     sizes: [2x1, 2x2]
   - tile: servers
@@ -20,3 +21,4 @@ states:
   sensor.proxmox_status: { state: "up", name: "Proxmox" }
   sensor.proxmox_response_time: { state: "152", attributes: { unit_of_measurement: ms } }
   sensor.pihole_status: { state: "down", name: "Pi-hole" }
+  sensor.nas_uptime_30_days: { state: "99.9976209168986", name: "NAS Uptime (30 days)", attributes: { unit_of_measurement: "%" } }

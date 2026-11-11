@@ -22,20 +22,20 @@ tiles:
     memory: 3400
     example: tile_example
     options:
-      # Server 1..6: a status entity (Uptime Kuma's Status sensor: up, down, pending, maintenance; or a Ping
-      # binary_sensor: on, off) and an optional response time sensor.
+      # Server 1..4: a status entity (Uptime Kuma's Status sensor: up, down, pending, maintenance; or a Ping
+      # binary_sensor: on, off), an optional response time sensor, and an optional uptime sensor (a percentage).
       - { id: status1, kind: entity, domains: [sensor, binary_sensor], label: status1, hint: status_hint }
       - { id: info1, kind: entity, domains: [sensor], attributes: [unit_of_measurement], label: info1, hint: info_hint }
+      - { id: uptime1, kind: entity, domains: [sensor], label: uptime1, hint: uptime_hint }
       - { id: status2, kind: entity, domains: [sensor, binary_sensor], label: status2, hint: status_hint }
       - { id: info2, kind: entity, domains: [sensor], attributes: [unit_of_measurement], label: info2, hint: info_hint }
+      - { id: uptime2, kind: entity, domains: [sensor], label: uptime2, hint: uptime_hint }
       - { id: status3, kind: entity, domains: [sensor, binary_sensor], label: status3, hint: status_hint }
       - { id: info3, kind: entity, domains: [sensor], attributes: [unit_of_measurement], label: info3, hint: info_hint }
+      - { id: uptime3, kind: entity, domains: [sensor], label: uptime3, hint: uptime_hint }
       - { id: status4, kind: entity, domains: [sensor, binary_sensor], label: status4, hint: status_hint }
       - { id: info4, kind: entity, domains: [sensor], attributes: [unit_of_measurement], label: info4, hint: info_hint }
-      - { id: status5, kind: entity, domains: [sensor, binary_sensor], label: status5, hint: status_hint }
-      - { id: info5, kind: entity, domains: [sensor], attributes: [unit_of_measurement], label: info5, hint: info_hint }
-      - { id: status6, kind: entity, domains: [sensor, binary_sensor], label: status6, hint: status_hint }
-      - { id: info6, kind: entity, domains: [sensor], attributes: [unit_of_measurement], label: info6, hint: info_hint }
+      - { id: uptime4, kind: entity, domains: [sensor], label: uptime4, hint: uptime_hint }
 
 # What a tap on the tile opens: every server with its state, its detail and since when.
 cards:

@@ -19,9 +19,9 @@
     "pending": "Pending",
     "maintenance": "Maintenance",
     "under_ms": "<1 ms",
-    "up_for": "up {time}",
     "one_pending": "{name} pending",
-    "some_pending": "{n} pending | {n} pending"
+    "some_pending": "{n} pending | {n} pending",
+    "uptime_over": "{pct} over {window}"
   },
   "app": {
     "name": "Server status",
@@ -38,12 +38,13 @@
     "info3": "Server 3: response time",
     "status4": "Server 4",
     "info4": "Server 4: response time",
-    "status5": "Server 5",
-    "info5": "Server 5: response time",
-    "status6": "Server 6",
-    "info6": "Server 6: response time",
     "card_name": "All servers",
     "bar_label": "Server outage",
-    "bar_example": "nas down"
+    "bar_example": "nas down",
+    "uptime1": "Server 1: uptime",
+    "uptime2": "Server 2: uptime",
+    "uptime3": "Server 3: uptime",
+    "uptime4": "Server 4: uptime",
+    "uptime_hint": "Optional: one of its Uptime sensors (1 day, 30 days or 365 days). Below 99.9% it shows in amber."
   }
 }

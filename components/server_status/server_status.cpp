@@ -10,7 +10,7 @@ using tessera::Font;
 using tessera::Tone;
 namespace ui = tessera::ui;
 
-static constexpr int MAX_SERVERS = 6;
+static constexpr int MAX_SERVERS = 4;
 
 // Days since 1970-01-01 for a date (Howard Hinnant's days_from_civil).
 static long days_from_civil(int y, unsigned m, unsigned d) {
@@ -44,6 +44,22 @@ static bool parse_moment(const std::string &text, long &out) {
 
 // Slower than this, a ping time (a detail sensor in ms) shows in amber.
 static constexpr double SLOW_MS = 100;
+// Less than this, an uptime (a percentage) shows in amber.
+static constexpr double LOW_UPTIME = 99.9;
+
+// A number in a state, or false for anything else ("unavailable", "").
+static bool number_of(const std::string &text, double &out) {
+  char *end = nullptr;
+  out = strtod(text.c_str(), &end);
+  return end != text.c_str() && !*end;
+}
+
+// What a name says in its last brackets: Uptime Kuma's "nas Uptime (30 days)" says "30 days".
+static std::string bracketed(const std::string &name) {
+  const size_t close = name.rfind(')'), open = name.rfind('(');
+  if (close == std::string::npos || open == std::string::npos || open > close) return "";
+  return name.substr(open + 1, close - open - 1);
+}
 
 // A server's state. Uptime Kuma's status sensor says up, down, pending (it failed and tries again) or maintenance;
 // a Ping binary sensor says on or off.
@@ -67,11 +83,11 @@ static std::string tidy(std::string name) {
 }
 
 struct Server {
-  int index = 0;      // 1 to 6: the options status<index> and info<index>
-  int up = STATE_UNKNOWN;    // one of the states above
-  bool has_info = false;
-  uint32_t since = 0;  // when Home Assistant last heard a change of the status
-  std::string fallback, name, info, unit;
+  int index = 0;           // 1 to 4: the options status<index>, info<index> (response time) and uptime<index>
+  int up = STATE_UNKNOWN;  // one of the states above
+  bool has_info = false, has_uptime = false;
+  uint32_t since = 0;      // when Home Assistant last heard a change of the status
+  std::string fallback, name, info, unit, uptime, window;
 };
 
 // The servers of one tile, and what there is to say about them. The tile and the card each keep one.
@@ -83,7 +99,7 @@ class Servers {
   int count = 0, up = 0, down = 0, pending = 0, paused = 0;
   int order[MAX_SERVERS] = {};  // down, pending, not known, maintenance, up; within each the order of the settings
 
-  void add(int index, const std::string &entity, bool has_info) {
+  void add(int index, const std::string &entity, bool has_info, bool has_uptime) {
     if (count >= MAX_SERVERS) return;
     Server &s = list[count++];
     s = Server();
@@ -91,10 +107,12 @@ class Servers {
     const size_t dot = entity.find('.');
     s.fallback = dot == std::string::npos ? entity : entity.substr(dot + 1);
     s.has_info = has_info;
+    s.has_uptime = has_uptime;
     sort();
   }
 
-  // The tile's data: {"entities": {"status1": {"state", "name", "updated"}, "info1": {"state", "attributes"}}}.
+  // The tile's data: {"entities": {"status1": {"state", "name", "updated"}, "info1": {"state", "attributes"}},
+  // "uptime1": {"state", "name"}}.
   // `discover`: the servers are the ones the data has (a card knows no options); else the ones add() made.
   void load(JsonObjectConst data, bool discover) {
     JsonObjectConst entities = data["entities"];
@@ -105,7 +123,9 @@ class Servers {
         snprintf(key, sizeof key, "status%d", i);
         if (entities[key].isNull()) continue;
         snprintf(key, sizeof key, "info%d", i);
-        add(i, "", !entities[key].isNull());
+        const bool has_info = !entities[key].isNull();
+        snprintf(key, sizeof key, "uptime%d", i);
+        add(i, "", has_info, !entities[key].isNull());
       }
     }
     for (int i = 0; i < count; i++) {
@@ -121,6 +141,10 @@ class Servers {
       JsonObjectConst info = entities[key];
       s.info = info["state"] | "";
       s.unit = info["attributes"]["unit_of_measurement"] | "";
+      snprintf(key, sizeof key, "uptime%d", s.index);
+      JsonObjectConst uptime = entities[key];
+      s.uptime = uptime["state"] | "";
+      s.window = bracketed(uptime["name"] | "");
     }
     sort();
   }
@@ -139,10 +163,42 @@ class Servers {
 
   // A ping time over SLOW_MS.
   bool slow(const Server &s) const {
-    if (s.up != STATE_UP || s.unit != "ms" || s.info.empty()) return false;
-    char *end = nullptr;
-    const double value = strtod(s.info.c_str(), &end);
-    return end != s.info.c_str() && !*end && value >= SLOW_MS;
+    double value;
+    return s.up == STATE_UP && s.unit == "ms" && number_of(s.info, value) && value >= SLOW_MS;
+  }
+
+  // An uptime under LOW_UPTIME.
+  bool low(const Server &s) const {
+    double value;
+    return number_of(s.uptime, value) && value < LOW_UPTIME;
+  }
+
+  // The uptime as a percentage with what it says: "100%", "99.998%", "99.5%". Nothing without one.
+  std::string uptime_text(const Server &s) const {
+    double value;
+    if (!number_of(s.uptime, value)) return "";
+    char text[16];
+    snprintf(text, sizeof text, "%.3f", value >= 100 ? 100.0 : value);
+    std::string number = text;
+    number.erase(number.find_last_not_of('0') + 1);
+    if (!number.empty() && number.back() == '.') number.pop_back();
+    return number + "%";
+  }
+
+  // A row's words on the right. Up: its response time and its uptime ("<1 ms · 99.998%"), or "Up" without either.
+  // Else the state in words ("Down 12m").
+  std::string line(const Server &s, uint32_t epoch) const {
+    if (s.up != STATE_UP) return state_text(s, epoch);
+    std::string text = s.has_info ? detail(s, epoch) : "";
+    const std::string pct = uptime_text(s);
+    if (!pct.empty()) text += (text.empty() ? "" : " \u00B7 ") + pct;
+    return text.empty() ? std::string(plugin_->text("up")) : text;
+  }
+
+  // The colour of a row's words: what is wrong only. Down red, pending, slow or a low uptime amber.
+  Tone line_tone(const Server &s) const {
+    if (s.up != STATE_UP) return tone(s);
+    return slow(s) || low(s) ? Tone::BUSY : Tone::NORMAL;
   }
 
   // What is the matter, in a few words: all is well, the one that is down, or how many are.
@@ -255,7 +311,9 @@ class ServersTile : public tessera::Tile {
       const std::string id = c.options[key] | "";
       if (id.empty()) continue;  // nothing chosen for this server
       snprintf(key, sizeof key, "info%d", i);
-      servers_.add(i, id, (c.options[key] | "")[0] != 0);
+      const bool has_info = (c.options[key] | "")[0] != 0;
+      snprintf(key, sizeof key, "uptime%d", i);
+      servers_.add(i, id, has_info, (c.options[key] | "")[0] != 0);
     }
     if (!servers_.count) {
       note_ = ui::label(c.parent, Font::BODY, theme::MUTED);
@@ -268,14 +326,20 @@ class ServersTile : public tessera::Tile {
     single_ = c.columns < 2 && c.rows < 2;
     if (single_) {
       // A badge: a round block as large as the cell allows, filled in the colour of the state, with a check, a cross
-      // or a dash in it. Under it the name (or the summary), and a line with the detail where there is room.
+      // or a dash in it. Under it the name (or the summary), a line with the response time, and for one server with an
+      // uptime sensor a line with its uptime, as far as there is room: the badge keeps at least an icon's size.
       const int title_h = ui::line_height(Font::BODY_LARGE), sub_h = ui::line_height(Font::BODY);
       const int gap = ui::px(ui::large() ? 8 : 5), least = ui::line_height(Font::ICON) + ui::px(12);
-      int room = height_ - gap - title_h - sub_h;
+      with_third_ = servers_.count == 1 && servers_.list[0].has_uptime;
+      int room = height_ - gap - title_h - sub_h - (with_third_ ? sub_h : 0);
+      if (with_third_ && room < least) {
+        with_third_ = false;
+        room += sub_h;
+      }
       with_sub_ = room >= least;
       if (!with_sub_) room += sub_h;
       const int d = std::max(least, std::min(width_, room));
-      const int total = d + gap + title_h + (with_sub_ ? sub_h : 0);
+      const int total = d + gap + title_h + (with_sub_ ? sub_h : 0) + (with_third_ ? sub_h : 0);
       const int y = std::max(0, (height_ - total) / 2);
       badge_ = ui::block(c.parent, theme::TRACK);
       lv_obj_set_size(badge_, d, d);
@@ -292,6 +356,12 @@ class ServersTile : public tessera::Tile {
       lv_obj_set_width(sub_, width_);
       lv_obj_set_style_text_align(sub_, LV_TEXT_ALIGN_CENTER, 0);
       lv_obj_set_pos(sub_, 0, y + d + gap + title_h);
+      if (with_third_) {
+        third_ = ui::label(c.parent, Font::BODY, theme::MUTED);
+        lv_obj_set_width(third_, width_);
+        lv_obj_set_style_text_align(third_, LV_TEXT_ALIGN_CENTER, 0);
+        lv_obj_set_pos(third_, 0, y + d + gap + title_h + sub_h);
+      }
       return;
     }
     const int line = ui::line_height(Font::BODY);
@@ -340,6 +410,7 @@ class ServersTile : public tessera::Tile {
     if (note_) ui::set_color(note_, theme::MUTED);
     if (big_) ui::set_color(big_, theme::INK);
     if (sub_) ui::set_color(sub_, theme::MUTED);
+    if (third_) ui::set_color(third_, theme::MUTED);
     if (head_) ui::set_color(head_, theme::INK);
     if (tally_) ui::set_color(tally_, theme::MUTED);
     for (int i = 0; i < lines_n_; i++) ui::set_fill(lines_[i], Tone::NORMAL, theme::LINE);
@@ -375,12 +446,16 @@ class ServersTile : public tessera::Tile {
     Tone tone, sub_tone = Tone::NORMAL;
     int state;  // as a server's: for several, the worst of them
     if (servers_.count == 1) {
-      // One server: its name, and its ping time or uptime (or how long it is down) under it.
+      // One server: its name, its response time (or its state in words) under it, and its uptime under that.
       tone = servers_.tone(first);
       state = first.up;
       title = first.name;
       sub = first.up == STATE_UP && first.has_info ? servers_.detail(first, epoch) : servers_.state_text(first, epoch);
-      sub_tone = tone == Tone::GOOD ? Tone::NORMAL : tone;
+      sub_tone = first.up == STATE_UP ? (servers_.slow(first) ? Tone::BUSY : Tone::NORMAL) : tone;
+      if (third_) {
+        ui::set_text(third_, servers_.uptime_text(first));
+        ui::set_tone(third_, servers_.low(first) ? Tone::BUSY : Tone::NORMAL, theme::MUTED);
+      }
     } else {
       // Several: what is the matter (or that all is well), and how many are up.
       tone = servers_.all();
@@ -415,16 +490,15 @@ class ServersTile : public tessera::Tile {
     for (int i = 0; i < slots_; i++) {
       Slot &r = slot_[i];
       const Server &s = servers_.list[servers_.order[i]];
-      // Up with a detail sensor: its ping time or uptime. Else the state in words.
-      const std::string info = s.up == STATE_UP && s.has_info ? servers_.detail(s, epoch) : servers_.state_text(s, epoch);
+      const std::string info = servers_.line(s, epoch);
       const Tone tone = servers_.tone(s);
       ui::set_fill(r.dot, tone, theme::MUTED);
       ui::set_text(r.name, s.name);
       ui::set_color(r.name, s.up == STATE_UNKNOWN || s.up == STATE_PAUSED ? theme::MUTED : theme::INK);  // no data or paused: steps back
       ui::set_text(r.info, info);
-      ui::set_tone(r.info, tone == Tone::GOOD ? Tone::NORMAL : tone, theme::MUTED);  // only what is wrong takes a colour
+      ui::set_tone(r.info, servers_.line_tone(s), theme::MUTED);  // only what is wrong takes a colour
       // The detail is as wide as its words; the name takes the room it leaves, and ends in dots when that is too little.
-      const int info_w = info.empty() ? 0 : std::min(width_ / 2, ui::text_width(info, Font::BODY) + ui::px(2));
+      const int info_w = info.empty() ? 0 : std::min(width_ * 3 / 5, ui::text_width(info, Font::BODY) + ui::px(2));
       lv_obj_set_width(r.info, std::max(1, info_w));
       lv_obj_set_x(r.info, width_ - info_w);
       lv_obj_set_width(r.name, std::max(1, width_ - name_x - info_w - (info_w ? ui::px(6) : 0)));
@@ -434,14 +508,14 @@ class ServersTile : public tessera::Tile {
   ServerStatus *plugin_;
   Servers servers_;
   int width_ = 0, height_ = 0, tile_ = -1, slots_ = 0, row_h_ = 0, dot_ = 0, top_ = 0, lines_n_ = 0;
-  bool single_ = false, with_sub_ = true;
+  bool single_ = false, with_sub_ = true, with_third_ = false;
   Slot slot_[MAX_SERVERS];
   lv_obj_t *lines_[MAX_SERVERS + 1] = {};
-  lv_obj_t *note_{}, *badge_{}, *badge_icon_{}, *big_{}, *sub_{}, *head_icon_{}, *head_{}, *tally_{};
+  lv_obj_t *note_{}, *badge_{}, *badge_icon_{}, *big_{}, *sub_{}, *third_{}, *head_icon_{}, *head_{}, *tally_{};
 };
 
 // The card a tap on the tile opens: every server on a raised block of its own. Its name with its state in its colour,
-// and under it what its detail sensor says and since when it has been up or down.
+// and under it its response time and its uptime over its window, or since when it is down.
 class ServersCard : public tessera::Card {
  public:
   explicit ServersCard(const tessera::Plugin *plugin) : plugin_(plugin), servers_(plugin) {}
@@ -525,16 +599,15 @@ class ServersCard : public tessera::Card {
       lv_obj_set_width(r.state, std::max(1, state_w));
       lv_obj_set_x(r.state, width_ - pad_ - state_w);
       lv_obj_set_width(r.name, std::max(1, width_ - pad_ - name_x - state_w - ui::px(8)));
-      // The second line. Up: its response time and how long it has been up ("152 ms · up 3d 4h"). Else since when it
+      // The second line. Up: its response time and its uptime ("152 ms · 99.998% over 30 days"). Else since when it
       // is as it is.
       std::string more;
       if (s.up == STATE_UP) {
-        more = servers_.detail(s, epoch);
-        const std::string how_long = servers_.age(s.since, epoch);
-        if (!how_long.empty()) {
-          if (!more.empty()) more += " · ";
-          more += tessera::fill(plugin_->text("up_for"), "time", how_long);
-        }
+        more = s.has_info ? servers_.detail(s, epoch) : "";
+        std::string pct = servers_.uptime_text(s);
+        if (!pct.empty() && !s.window.empty())
+          pct = tessera::fill(tessera::fill(plugin_->text("uptime_over"), "pct", pct).c_str(), "window", s.window);
+        if (!pct.empty()) more += (more.empty() ? "" : " \u00B7 ") + pct;
       } else if (s.since && epoch && s.up != STATE_UNKNOWN) {
         more = tessera::fill(plugin_->text("since"), "when", moment_text(s.since));
       }
