@@ -1,0 +1,22 @@
+# Sample data for tools/preview.py (docs/PREVIEW.md). Never put a secret here.
+tiles:
+  - tile: servers
+    name: Servers
+    options:
+      status1: binary_sensor.nas_ping
+      info1: sensor.nas_ping_round_trip_time
+      status2: binary_sensor.proxmox_ping
+      info2: sensor.proxmox_uptime
+      status3: binary_sensor.pihole_ping
+    sizes: [2x1, 2x2]
+  - tile: servers
+    name: Nothing chosen yet
+    sizes: [1x1]
+
+# states: entities as Home Assistant has them (docs/PREVIEW.md). Check the exact shape there before relying on this.
+states:
+  binary_sensor.nas_ping: { state: "on", name: "NAS" }
+  sensor.nas_ping_round_trip_time: { state: "1.8", attributes: { unit_of_measurement: ms } }
+  binary_sensor.proxmox_ping: { state: "on", name: "Proxmox" }
+  sensor.proxmox_uptime: { state: "2026-10-01T08:00:00+00:00" }
+  binary_sensor.pihole_ping: { state: "off", name: "Pi-hole" }

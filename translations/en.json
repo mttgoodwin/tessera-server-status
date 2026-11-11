@@ -1,0 +1,23 @@
+{
+  "_meta": { "name": "English" },
+  "screen": {
+    "choose": "Choose a server",
+    "up": "Up",
+    "down": "Down",
+    "unknown": "?"
+  },
+  "app": {
+    "name": "Server status",
+    "summary": "Shows whether your servers are up, with ping or uptime, from Home Assistant.",
+    "tile_name": "Server status",
+    "tile_example": "3 of 3 servers up",
+    "status1": "Server 1: status (ping)",
+    "info1": "Server 1: ping time or uptime (optional)",
+    "status2": "Server 2: status (ping)",
+    "info2": "Server 2: ping time or uptime (optional)",
+    "status3": "Server 3: status (ping)",
+    "info3": "Server 3: ping time or uptime (optional)",
+    "status4": "Server 4: status (ping)",
+    "info4": "Server 4: ping time or uptime (optional)"
+  }
+}

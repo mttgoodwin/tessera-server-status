@@ -1,0 +1,34 @@
+# Server status: a tile that shows whether your servers are up, with ping or uptime beside each.
+# It reads Home Assistant entities only (the Ping and Glances integrations): no fetch, no network permission.
+# Every name, label and hint is a key into translations/<language>.json, part "app".
+id: server_status
+version: 0.1.0
+api: "0.15"             # options of kind `entity` need 0.15
+icon: server            # must be in Tessera's icon set; tools/check.py or the Tessera repo will tell
+maintainer: mttgoodwin
+license: MIT
+stage: beta
+topics: [tech, home]
+requires:
+  esphome: 2026.6.2
+boards: any
+flash_kb: 4
+
+tiles:
+  - id: servers
+    name: tile_name
+    icon: server
+    sizes: { min: 1x1, max: 2x2 }
+    memory: 1200
+    example: tile_example
+    options:
+      # Server 1..4: a status entity (Ping: binary_sensor, on = up) and an optional detail entity
+      # (Ping round-trip time, or the Glances uptime sensor).
+      - { id: status1, kind: entity, domains: [binary_sensor], label: status1 }
+      - { id: info1, kind: entity, domains: [sensor], attributes: [unit_of_measurement], label: info1 }
+      - { id: status2, kind: entity, domains: [binary_sensor], label: status2 }
+      - { id: info2, kind: entity, domains: [sensor], attributes: [unit_of_measurement], label: info2 }
+      - { id: status3, kind: entity, domains: [binary_sensor], label: status3 }
+      - { id: info3, kind: entity, domains: [sensor], attributes: [unit_of_measurement], label: info3 }
+      - { id: status4, kind: entity, domains: [binary_sensor], label: status4 }
+      - { id: info4, kind: entity, domains: [sensor], attributes: [unit_of_measurement], label: info4 }
