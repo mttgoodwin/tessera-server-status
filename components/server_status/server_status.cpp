@@ -57,8 +57,17 @@ static int state_of(const std::string &state) {
   return STATE_UNKNOWN;  // unavailable, unknown, or nothing chosen
 }
 
+// A name as the row shows it: Uptime Kuma's "nas Status" (sometimes with a space in front) is "nas".
+static std::string tidy(std::string name) {
+  static const std::string suffix = " Status";
+  if (name.size() > suffix.size() && name.compare(name.size() - suffix.size(), suffix.size(), suffix) == 0)
+    name.erase(name.size() - suffix.size());
+  const size_t first = name.find_first_not_of(' '), last = name.find_last_not_of(' ');
+  return first == std::string::npos ? std::string() : name.substr(first, last - first + 1);
+}
+
 struct Server {
-  int index = 0;       // 1 to 6: the options status<index> and info<index>
+  int index = 0;      // 1 to 6: the options status<index> and info<index>
   int up = STATE_UNKNOWN;    // one of the states above
   bool has_info = false;
   uint32_t since = 0;  // when Home Assistant last heard a change of the status
@@ -105,7 +114,7 @@ class Servers {
       JsonObjectConst status = entities[key];
       const std::string state = status["state"] | "";
       s.up = state_of(state);
-      s.name = status["name"] | "";
+      s.name = tidy(status["name"] | "");
       if (s.name.empty()) s.name = s.fallback;
       s.since = status["updated"] | 0u;
       snprintf(key, sizeof key, "info%d", s.index);
