@@ -1,4 +1,4 @@
-# Server status: a tile that shows whether your servers and services are up, with their response time.
+# Server status: a tile that shows whether your servers and services are up, how long, and their uptime %.
 # It reads Home Assistant entities only (Uptime Kuma, or Ping): no fetch, no network permission.
 # Every name, label and hint is a key into translations/<language>.json, part "app".
 id: server_status
@@ -23,7 +23,8 @@ tiles:
     example: tile_example
     options:
       # Server 1..4: a status entity (Uptime Kuma's Status sensor: up, down, pending, maintenance; or a Ping
-      # binary_sensor: on, off), an optional response time sensor, and an optional uptime sensor (a percentage).
+      # binary_sensor: on, off), an optional sensor with how long it is up (a start time, or a duration), and an
+      # optional uptime percentage (Uptime Kuma).
       - { id: status1, kind: entity, domains: [sensor, binary_sensor], label: status1, hint: status_hint }
       - { id: info1, kind: entity, domains: [sensor], attributes: [unit_of_measurement], label: info1, hint: info_hint }
       - { id: uptime1, kind: entity, domains: [sensor], label: uptime1, hint: uptime_hint }

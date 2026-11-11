@@ -83,7 +83,7 @@ static std::string tidy(std::string name) {
 }
 
 struct Server {
-  int index = 0;           // 1 to 4: the options status<index>, info<index> (response time) and uptime<index>
+  int index = 0;           // 1 to 4: the options status<index>, info<index> (how long it is up) and uptime<index> (%)
   int up = STATE_UNKNOWN;  // one of the states above
   bool has_info = false, has_uptime = false;
   uint32_t since = 0;      // when Home Assistant last heard a change of the status
@@ -185,7 +185,8 @@ class Servers {
     return number + "%";
   }
 
-  // A row's words on the right. Up: its response time and its uptime ("<1 ms · 99.998%"), or "Up" without either.
+  // A row's words on the right. Up: how long it is up and its uptime percentage ("12d 4h · 99.998%"), or "Up"
+  // without either.
   // Else the state in words ("Down 12m").
   std::string line(const Server &s, uint32_t epoch) const {
     if (s.up != STATE_UP) return state_text(s, epoch);
@@ -227,15 +228,21 @@ class Servers {
   // the screen's clock is not set, or for a moment that is not known or still to come.
   std::string age(long since, uint32_t epoch) const {
     if (!since || !epoch || static_cast<long>(epoch) < since) return "";
-    const long s = static_cast<long>(epoch) - since;
+    return span(static_cast<long>(epoch) - since);
+  }
+
+  // A number of seconds as the two largest parts that say something: "12d 4h", "3h 20m", "8m".
+  std::string span(long s) const {
+    if (s < 0) return "";
     const std::string d = std::to_string(s / 86400), h = std::to_string(s % 86400 / 3600), m = std::to_string(s % 3600 / 60);
     if (s >= 86400) return tessera::fill(tessera::fill(plugin_->text("age_days"), "d", d).c_str(), "h", h);
     if (s >= 3600) return tessera::fill(tessera::fill(plugin_->text("age_hours"), "h", h).c_str(), "m", m);
     return tessera::fill(plugin_->text("age_minutes"), "m", m);
   }
 
-  // The detail sensor in words. A number gets its unit ("152 ms", "<1 ms"); a moment (the Glances uptime sensor holds
-  // when the machine started) is how long ago that was; anything else is shown as it is.
+  // The uptime sensor in words, as a time: a moment (Glances' Uptime holds when the machine started) is how long ago
+  // that was, a duration in s, min, h or d is that long ("12d 4h"). Another number gets its unit ("152 ms", "<1 ms");
+  // anything else is shown as it is.
   std::string detail(const Server &s, uint32_t epoch) const {
     if (s.info.empty() || s.info == "unknown" || s.info == "unavailable") return "";
     long moment = 0;
@@ -243,6 +250,8 @@ class Servers {
     char *end = nullptr;
     const double value = strtod(s.info.c_str(), &end);
     if (end == s.info.c_str() || *end) return s.info;
+    const double per = s.unit == "s" ? 1 : s.unit == "min" ? 60 : s.unit == "h" ? 3600 : s.unit == "d" ? 86400 : 0;
+    if (per) return span(static_cast<long>(value * per));
     // Uptime Kuma rounds a ping on the home network to 0 ms.
     if (s.unit == "ms" && value < 1) return plugin_->text("under_ms");
     std::string number = s.info;
@@ -446,7 +455,7 @@ class ServersTile : public tessera::Tile {
     Tone tone, sub_tone = Tone::NORMAL;
     int state;  // as a server's: for several, the worst of them
     if (servers_.count == 1) {
-      // One server: its name, its response time (or its state in words) under it, and its uptime under that.
+      // One server: its name, how long it is up (or its state in words) under it, and its uptime % under that.
       tone = servers_.tone(first);
       state = first.up;
       title = first.name;
@@ -599,7 +608,7 @@ class ServersCard : public tessera::Card {
       lv_obj_set_width(r.state, std::max(1, state_w));
       lv_obj_set_x(r.state, width_ - pad_ - state_w);
       lv_obj_set_width(r.name, std::max(1, width_ - pad_ - name_x - state_w - ui::px(8)));
-      // The second line. Up: its response time and its uptime ("152 ms · 99.998% over 30 days"). Else since when it
+      // The second line. Up: how long it is up and its uptime ("12d 4h · 99.998% over 30 days"). Else since when it
       // is as it is.
       std::string more;
       if (s.up == STATE_UP) {

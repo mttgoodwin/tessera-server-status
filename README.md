@@ -1,6 +1,6 @@
 # Server status
 
-A tile that shows whether your servers and services are up, with their response time. It reads Home Assistant
+A tile that shows whether your servers and services are up, for how long, and their uptime percentage. It reads Home Assistant
 entities from **Uptime Kuma** (or the **Ping** integration), so it needs no internet service and no network permission.
 
 ## Set up
@@ -11,8 +11,10 @@ entities from **Uptime Kuma** (or the **Ping** integration), so it needs no inte
 3. In Layout, place the **Server status** tile from the library's Plugins group.
 4. In the inspector, for each server (up to four per tile; add another tile for more) choose:
    - **status**: the monitor's Status sensor (or a Ping `binary_sensor`). Search by its name, such as `nas Status`.
-   - **response time** (optional): the monitor's Response time sensor.
-   - **uptime** (optional): one of the monitor's Uptime sensors, such as `nas Uptime (30 days)`. Uptime Kuma
+   - **uptime (time)** (optional): any sensor that says when the machine started or how long it has been up, such as
+     Glances' Uptime, a System Monitor sensor, or a template. A start time, or a duration in s, min, h or d, shows as
+     `12d 4h`.
+   - **uptime %** (optional): one of the monitor's Uptime sensors, such as `nas Uptime (30 days)`. Uptime Kuma
      leaves these disabled: enable them on the integration's page in Home Assistant.
 5. Optional: in a page's top bar, add **Server outage** from the plugins. It shows only while a server is down.
 
@@ -26,9 +28,9 @@ entities from **Uptime Kuma** (or the **Ping** integration), so it needs no inte
   first and say for how long (`Down 12m`), so an outage stays in view on a tile too small for all of them.
 - **A tap** opens a card with every server: its state, its ping time or uptime, and since when it is up or down.
 - A ping time of 100 ms or more (a detail sensor in `ms`) shows in amber.
-- A row shows the response time and the uptime: `<1 ms · 99.998%`. A ping on the home network that Uptime Kuma
-  rounds to 0 shows as `<1 ms`. An uptime below 99.9% shows in amber.
-- The card says over which window the uptime is: `152 ms · 99.998% over 30 days`.
+- A row shows how long the server is up and its uptime percentage: `12d 4h · 99.998%`. An uptime below 99.9% shows
+  in amber.
+- The card says over which window the percentage is: `12d 4h · 99.998% over 30 days`.
 - The top bar item knows the servers of the tiles on the screen. On a board that keeps only the current page (the
   2.8-inch CYD), it knows them while their page is shown.
 - The editor finds entities by their name, not their entity id.

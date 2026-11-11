@@ -3,9 +3,9 @@
 ## 0.3.0 - 2026-11-11
 - Uptime Kuma: its Status sensors (up, down, pending, maintenance) work as a server's status, beside Ping.
 - Pending shows in amber, maintenance in grey; a response time of 0 ms shows as <1 ms.
-- An uptime sensor per server (Uptime Kuma's Uptime %, 1, 30 or 365 days), beside its response time; below 99.9% in
-  amber. Four servers per tile, each with a status, a response time and an uptime.
-- The 1x1 tile of one server shows its uptime under its response time, where there is room.
+- Four servers per tile, each with a status, how long it is up (any sensor with a start time or a duration, such as
+  Glances' Uptime: `12d 4h`) and its uptime percentage (Uptime Kuma, 1, 30 or 365 days; below 99.9% in amber).
+- The 1x1 tile of one server shows both, where there is room.
 - A top bar item: the server that is down, in red, only while one is.
 - A single cell is a status badge: a round block in green, amber, red or grey with a check, a cross or a dash in it,
   and the name (or the summary) and the ping time or uptime under it.
