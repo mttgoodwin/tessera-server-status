@@ -12,7 +12,7 @@
   Glances' Uptime: `12d 4h`) and its uptime percentage (Uptime Kuma, 1, 30 or 365 days; below 99.9% in amber).
 - The 1x1 tile of one server shows both, where there is room.
 - A top bar item: the server that is down, in red, only while one is.
-- The card shows each server on a raised block of its own.
+- The card shows each server on a raised block of its own, with the state as a small tinted badge on the right.
 - The plugin's icon is now one of Tessera's (lan-connect).
 
 ## 0.2.0 - 2026-11-11

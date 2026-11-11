@@ -313,6 +313,12 @@ static lv_obj_t *round_block(lv_obj_t *parent, int d) {
   return b;
 }
 
+// A tinted block: the colour of the state, faint, so the glyph in that colour stands out on it.
+static void tint(lv_obj_t *block, Tone tone) {
+  ui::set_fill(block, tone, theme::TRACK);
+  lv_obj_set_style_bg_opa(block, tone == Tone::NORMAL ? LV_OPA_COVER : LV_OPA_20, 0);
+}
+
 // The tile, in Tessera's own look: few parts, bold names, muted details, and colour only where something is wrong.
 //
 // A single cell is a status badge: a soft round block tinted in the colour of the state, with a check, a cross or a
@@ -461,12 +467,6 @@ class ServersTile : public tessera::Tile {
     else paint_list(epoch);
   }
 
-  // A tinted block: the colour of the state, faint, so the glyph in that colour stands out on it.
-  static void tint(lv_obj_t *block, Tone tone) {
-    ui::set_fill(block, tone, theme::TRACK);
-    lv_obj_set_style_bg_opa(block, tone == Tone::NORMAL ? LV_OPA_COVER : LV_OPA_20, 0);
-  }
-
   void paint_badge(uint32_t epoch) {
     const Server &first = servers_.list[servers_.order[0]];
     std::string title, sub, third;
@@ -571,39 +571,40 @@ class ServersTile : public tessera::Tile {
   lv_obj_t *note_{}, *badge_{}, *badge_icon_{}, *title_{}, *sub_{}, *third_{}, *head_{}, *tally_{};
 };
 
-// The card a tap on the tile opens: every server on a raised block of its own. Its name with its state in its colour,
-// and under it its response time and its uptime over its window, or since when it is down.
+// The card a tap on the tile opens: every server on a raised block of its own. On the left its name in bold and under
+// it how long it is up and its uptime over its window ("11d 6h · 99.99% over 365 days"), or what is wrong ("Down 12m ·
+// since 14:02"). On the right, in the middle of the block, a small badge as the single cell's: tinted in the colour of
+// the state, with a check, a cross, dots or a dash.
 class ServersCard : public tessera::Card {
  public:
   explicit ServersCard(const tessera::Plugin *plugin) : plugin_(plugin), servers_(plugin) {}
 
   void open(const tessera::CardContext &c) override {
     width_ = c.width;
-    const int name_h = ui::line_height(Font::BODY_LARGE), more_h = ui::line_height(Font::BODY);
-    pad_ = ui::px(ui::large() ? 12 : 8);
+    const int name_h = ui::line_height(Font::TITLE), more_h = ui::line_height(Font::BODY);
+    pad_ = ui::px(ui::large() ? 14 : 9);
     const int gap = ui::px(ui::large() ? 8 : 5);
     const int block_h = pad_ + name_h + more_h + pad_;
     row_h_ = block_h + gap;
-    dot_ = ui::px(ui::large() ? 12 : 9);
+    badge_d_ = ui::line_height(Font::ICON_SMALL) + ui::px(ui::large() ? 16 : 10);
     slots_ = std::max(1, std::min(MAX_SERVERS, (c.height + gap) / row_h_));
-    inner_w_ = width_ - 2 * pad_;
+    const int text_w = std::max(1, width_ - 2 * pad_ - badge_d_ - ui::px(10));
     for (int i = 0; i < slots_; i++) {
       Slot &r = slot_[i];
       r.block = ui::block(c.parent, theme::RAISED);
       lv_obj_set_size(r.block, width_, block_h);
       lv_obj_set_pos(r.block, 0, i * row_h_);
-      r.dot = ui::block(r.block, theme::MUTED);
-      lv_obj_set_size(r.dot, dot_, dot_);
-      lv_obj_set_style_radius(r.dot, dot_ / 2, 0);
-      lv_obj_set_pos(r.dot, pad_, pad_ + (name_h - dot_) / 2);
-      r.name = ui::label(r.block, Font::BODY_LARGE, theme::INK);
-      lv_obj_set_pos(r.name, pad_ + dot_ + ui::px(10), pad_);
-      r.state = ui::label(r.block, Font::BODY_LARGE, theme::MUTED);
-      lv_obj_set_style_text_align(r.state, LV_TEXT_ALIGN_RIGHT, 0);
-      lv_obj_set_y(r.state, pad_);
+      r.name = ui::label(r.block, Font::TITLE, theme::INK);
+      lv_obj_set_width(r.name, text_w);
+      lv_obj_set_pos(r.name, pad_, pad_);
       r.more = ui::label(r.block, Font::BODY, theme::MUTED);
-      lv_obj_set_width(r.more, std::max(1, inner_w_ - dot_ - ui::px(10)));
-      lv_obj_set_pos(r.more, pad_ + dot_ + ui::px(10), pad_ + name_h);
+      lv_obj_set_width(r.more, text_w);
+      lv_obj_set_pos(r.more, pad_, pad_ + name_h);
+      r.badge = round_block(r.block, badge_d_);
+      lv_obj_set_pos(r.badge, width_ - pad_ - badge_d_, (block_h - badge_d_) / 2);
+      r.icon = ui::label(r.badge, Font::ICON_SMALL, theme::MUTED);
+      lv_label_set_long_mode(r.icon, LV_LABEL_LONG_CLIP);
+      lv_obj_center(r.icon);
     }
     paint(tessera::epoch());
   }
@@ -615,9 +616,7 @@ class ServersCard : public tessera::Card {
   void on_theme() override {
     for (int i = 0; i < slots_; i++) {
       ui::set_fill(slot_[i].block, Tone::NORMAL, theme::RAISED);
-      ui::set_fill(slot_[i].dot, Tone::NORMAL, theme::MUTED);
       ui::set_color(slot_[i].name, theme::INK);
-      ui::set_color(slot_[i].state, theme::MUTED);
       ui::set_color(slot_[i].more, theme::MUTED);
     }
     paint(tessera::epoch());
@@ -625,7 +624,7 @@ class ServersCard : public tessera::Card {
 
  private:
   struct Slot {
-    lv_obj_t *block{}, *dot{}, *name{}, *state{}, *more{};
+    lv_obj_t *block{}, *name{}, *more{}, *badge{}, *icon{};
   };
 
   // A moment as the screen writes it: the time today, the day with it before.
@@ -635,7 +634,6 @@ class ServersCard : public tessera::Card {
   }
 
   void paint(uint32_t epoch) {
-    const int name_x = pad_ + dot_ + ui::px(10);
     for (int i = 0; i < slots_; i++) {
       Slot &r = slot_[i];
       // The block holds the rest of the row: hiding it hides them all.
@@ -646,35 +644,39 @@ class ServersCard : public tessera::Card {
       lv_obj_remove_flag(r.block, LV_OBJ_FLAG_HIDDEN);
       const Server &s = servers_.list[servers_.order[i]];
       const Tone tone = servers_.tone(s);
-      const std::string state = servers_.state_text(s, epoch);
-      ui::set_fill(r.dot, tone, theme::MUTED);
+      const uint32_t icon = s.up == STATE_UP ? ICON_CHECK : s.up == STATE_DOWN ? ICON_CROSS
+                          : s.up == STATE_PENDING ? ICON_DOTS : ICON_DASH;
+      tint(r.badge, tone);
+      ui::set_text(r.icon, ui::icon(icon));
+      ui::set_tone(r.icon, tone, theme::MUTED);
       ui::set_text(r.name, s.name);
       ui::set_color(r.name, s.up == STATE_UNKNOWN || s.up == STATE_PAUSED ? theme::MUTED : theme::INK);
-      ui::set_text(r.state, state);
-      ui::set_tone(r.state, tone, theme::MUTED);
-      const int state_w = ui::text_width(state, Font::BODY_LARGE) + ui::px(2);
-      lv_obj_set_width(r.state, std::max(1, state_w));
-      lv_obj_set_x(r.state, width_ - pad_ - state_w);
-      lv_obj_set_width(r.name, std::max(1, width_ - pad_ - name_x - state_w - ui::px(8)));
-      // The second line. Up: how long it is up and its uptime ("12d 4h · 99.998% over 30 days"). Else since when it
-      // is as it is.
+      // The second line. Up: how long and its uptime ("11d 6h · 99.99% over 365 days"); a slow ping or a low uptime in
+      // amber. Else the state in words and since when ("Down 12m · since 14:02"), in the state's colour.
       std::string more;
+      Tone more_tone = Tone::NORMAL;
       if (s.up == STATE_UP) {
         more = s.has_info ? servers_.detail(s, epoch) : "";
         std::string pct = servers_.uptime_text(s);
         if (!pct.empty() && !s.window.empty())
           pct = tessera::fill(tessera::fill(plugin_->text("uptime_over"), "pct", pct).c_str(), "window", s.window);
-        if (!pct.empty()) more += (more.empty() ? "" : " \u00B7 ") + pct;
-      } else if (s.since && epoch && s.up != STATE_UNKNOWN) {
-        more = tessera::fill(plugin_->text("since"), "when", moment_text(s.since));
+        if (!pct.empty()) more += (more.empty() ? "" : " · ") + pct;
+        if (more.empty()) more = plugin_->text("up");
+        more_tone = servers_.slow(s) || servers_.low(s) ? Tone::BUSY : Tone::NORMAL;
+      } else {
+        more = servers_.state_text(s, epoch);
+        if (s.since && epoch && s.up != STATE_UNKNOWN)
+          more += " · " + tessera::fill(plugin_->text("since"), "when", moment_text(s.since));
+        more_tone = tone;
       }
       ui::set_text(r.more, more);
+      ui::set_tone(r.more, more_tone, theme::MUTED);
     }
   }
 
   const tessera::Plugin *plugin_;
   Servers servers_;
-  int width_ = 0, inner_w_ = 0, slots_ = 0, row_h_ = 0, dot_ = 0, pad_ = 0;
+  int width_ = 0, slots_ = 0, row_h_ = 0, pad_ = 0, badge_d_ = 0;
   Slot slot_[MAX_SERVERS];
 };
 
