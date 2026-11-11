@@ -13,7 +13,8 @@
     "some_down": "{n} down | {n} down",
     "age_days": "{d}d {h}h",
     "age_hours": "{h}h {m}m",
-    "age_minutes": "{m}m"
+    "age_minutes": "{m}m",
+    "since": "since {when}"
   },
   "app": {
     "name": "Server status",
@@ -33,6 +34,7 @@
     "status5": "Server 5",
     "info5": "Server 5: ping time or uptime",
     "status6": "Server 6",
-    "info6": "Server 6: ping time or uptime"
+    "info6": "Server 6: ping time or uptime",
+    "card_name": "All servers"
   }
 }

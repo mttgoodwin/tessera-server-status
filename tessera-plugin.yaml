@@ -36,3 +36,7 @@ tiles:
       - { id: info5, kind: entity, domains: [sensor], attributes: [unit_of_measurement], label: info5, hint: info_hint }
       - { id: status6, kind: entity, domains: [binary_sensor], label: status6, hint: status_hint }
       - { id: info6, kind: entity, domains: [sensor], attributes: [unit_of_measurement], label: info6, hint: info_hint }
+
+# What a tap on the tile opens: every server with its state, its detail and since when.
+cards:
+  - { id: servers, name: card_name }

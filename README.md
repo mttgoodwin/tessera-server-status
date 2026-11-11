@@ -17,6 +17,8 @@ from the **Ping** and **Glances** integrations, so it needs no internet service 
   of the one that is down under it. With one server it says Up or Down, with its ping time or uptime.
 - **A larger tile** lists the servers: a green dot is up, red is down, grey has no data. Servers that are down come
   first and say for how long (`Down 12m`), so an outage stays in view on a tile too small for all of them.
+- **A tap** opens a card with every server: its state, its ping time or uptime, and since when it is up or down.
+- A ping time of 100 ms or more (a detail sensor in `ms`) shows in amber.
 - A detail sensor that holds a number shows it with its unit (`1.8 ms`). One that holds a moment (the Glances uptime
   sensor holds when the machine started) shows how long ago that was (`12d 4h`).
 - The editor finds entities by their name, not their entity id.
