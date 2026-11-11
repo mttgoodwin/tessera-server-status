@@ -1,6 +1,7 @@
 #include "server_status.h"
 #include <algorithm>
 #include <cstdio>
+#include <cmath>
 #include <cstdlib>
 #include <string>
 
@@ -173,12 +174,13 @@ class Servers {
     return number_of(s.uptime, value) && value < LOW_UPTIME;
   }
 
-  // The uptime as a percentage with what it says: "100%", "99.998%", "99.5%". Nothing without one.
+  // The uptime as a percentage: "100%", "99.99%", "99.5%", rounded down so that only a full 100 says 100%. Nothing
+  // without one.
   std::string uptime_text(const Server &s) const {
     double value;
     if (!number_of(s.uptime, value)) return "";
     char text[16];
-    snprintf(text, sizeof text, "%.3f", value >= 100 ? 100.0 : value);
+    snprintf(text, sizeof text, "%.2f", value >= 100 ? 100.0 : std::floor(value * 100) / 100);
     std::string number = text;
     number.erase(number.find_last_not_of('0') + 1);
     if (!number.empty() && number.back() == '.') number.pop_back();
@@ -287,6 +289,13 @@ static constexpr uint32_t ICON_CHECK = 0xF012C;     // check: in the badge of a 
 static constexpr uint32_t ICON_CROSS = 0xF0156;     // close
 static constexpr uint32_t ICON_DASH = 0xF0374;      // minus
 static constexpr uint32_t ICON_DOTS = 0xF01D8;      // dots-horizontal: pending
+
+// From a label's top to the baseline of its text. Labels of two fonts side by side line up on their baselines, as
+// text does, not on their middles: a bold name and a small number beside it then read as one line.
+static int baseline(lv_obj_t *label) {
+  const lv_font_t *font = lv_obj_get_style_text_font(label, LV_PART_MAIN);
+  return font ? font->line_height - font->base_line : 0;
+}
 
 // A round block: a dot, or a badge.
 static lv_obj_t *round_block(lv_obj_t *parent, int d) {
@@ -416,25 +425,25 @@ class ServersTile : public tessera::Tile {
       lv_obj_set_pos(head_, 0, 0);
       tally_ = ui::label(parent, Font::BODY, theme::MUTED);
       lv_obj_set_style_text_align(tally_, LV_TEXT_ALIGN_RIGHT, 0);
-      lv_obj_set_y(tally_, (title_h - body_h) / 2);
+      lv_obj_set_y(tally_, baseline(head_) - baseline(tally_));
     }
     slots_ = std::max(1, std::min(servers_.count, (height_ - top_) / row_h_));
-    // The rows share the room below the header, up to half a row of air each.
-    pitch_ = std::min((height_ - top_) / slots_, row_h_ + row_h_ / 2);
-    pct_w_ = ui::text_width("99.99%", Font::BODY) + ui::px(2);
+    // The rows share the room below the header, up to a row of air each; what is left over goes under the last.
+    pitch_ = std::min((height_ - top_) / slots_, 2 * row_h_);
     for (int i = 0; i < slots_; i++) {
       Slot &r = slot_[i];
       const int y = top_ + i * pitch_ + (pitch_ - row_h_) / 2;
       r.dot = round_block(parent, dot_);
       lv_obj_set_pos(r.dot, 0, y + (row_h_ - dot_) / 2);
+      const int name_y = y + (row_h_ - title_h) / 2;
       r.name = ui::label(parent, Font::TITLE, theme::INK);
-      lv_obj_set_pos(r.name, dot_ + ui::px(ui::large() ? 12 : 8), y + (row_h_ - title_h) / 2);
+      lv_obj_set_pos(r.name, dot_ + ui::px(ui::large() ? 12 : 8), name_y);
       r.time = ui::label(parent, Font::BODY, theme::INK_SOFT);
       lv_obj_set_style_text_align(r.time, LV_TEXT_ALIGN_RIGHT, 0);
-      lv_obj_set_y(r.time, y + (row_h_ - body_h) / 2);
+      lv_obj_set_y(r.time, name_y + baseline(r.name) - baseline(r.time));
       r.pct = ui::label(parent, Font::BODY, theme::MUTED);
       lv_obj_set_style_text_align(r.pct, LV_TEXT_ALIGN_RIGHT, 0);
-      lv_obj_set_y(r.pct, y + (row_h_ - body_h) / 2);
+      lv_obj_set_y(r.pct, name_y + baseline(r.name) - baseline(r.pct));
     }
   }
 
@@ -506,27 +515,26 @@ class ServersTile : public tessera::Tile {
       ui::set_tone(head_, servers_.all(), theme::INK);
       lv_obj_set_width(head_, std::max(1, width_ - tally_w - ui::px(8)));
     }
-    // Two columns on the right, the same for every row: the percentages, and left of them how long it is up.
-    bool any_pct = false;
-    int time_w = 0;
+    // Two columns on the right, the same for every row, each as wide as its widest: the percentages, and left of them
+    // how long it is up. A server that is up with nothing more to say says nothing: its green dot says it.
+    int time_w = 0, pct_w = 0;
     std::string times[MAX_SERVERS], pcts[MAX_SERVERS];
     for (int i = 0; i < slots_; i++) {
       const Server &s = servers_.list[servers_.order[i]];
       if (s.up == STATE_UP) {
         times[i] = s.has_info ? servers_.detail(s, epoch) : "";
-        if (times[i].empty() && !s.has_uptime) times[i] = plugin_->text("up");
         pcts[i] = servers_.uptime_text(s);
       } else {
         times[i] = servers_.state_text(s, epoch);
       }
-      any_pct = any_pct || !pcts[i].empty();
-      time_w = std::max(time_w, ui::text_width(times[i], Font::BODY));
+      if (!times[i].empty()) time_w = std::max(time_w, ui::text_width(times[i], Font::BODY) + ui::px(2));
+      if (!pcts[i].empty()) pct_w = std::max(pct_w, ui::text_width(pcts[i], Font::BODY) + ui::px(2));
     }
-    const int col_gap = ui::px(ui::large() ? 12 : 8);
-    const int pct_w = any_pct ? pct_w_ : 0;
-    time_w = std::min(time_w + ui::px(2), width_ / 2);
+    const int col_gap = ui::px(ui::large() ? 16 : 10);
+    pct_w = std::min(pct_w, width_ / 4);
+    time_w = std::min(time_w, width_ / 3);
     const int name_x = dot_ + ui::px(ui::large() ? 12 : 8);
-    const int time_x = width_ - pct_w - (pct_w ? col_gap : 0) - time_w;
+    const int time_x = width_ - pct_w - (pct_w && time_w ? col_gap : 0) - time_w;
     for (int i = 0; i < slots_; i++) {
       Slot &r = slot_[i];
       const Server &s = servers_.list[servers_.order[i]];
@@ -534,7 +542,7 @@ class ServersTile : public tessera::Tile {
       lv_obj_set_style_bg_opa(r.dot, LV_OPA_COVER, 0);  // a dot is solid: it is too small to be faint
       ui::set_text(r.name, s.name);
       ui::set_color(r.name, s.up == STATE_UNKNOWN || s.up == STATE_PAUSED ? theme::MUTED : theme::INK);
-      lv_obj_set_width(r.name, std::max(1, time_x - name_x - col_gap));
+      lv_obj_set_width(r.name, std::max(1, time_x - name_x - (time_w || pct_w ? col_gap : 0)));
       ui::set_text(r.time, times[i]);
       ui::set_tone(r.time, s.up == STATE_UP ? (servers_.slow(s) ? Tone::BUSY : Tone::NORMAL) : servers_.tone(s),
                    theme::INK_SOFT);
@@ -549,7 +557,7 @@ class ServersTile : public tessera::Tile {
 
   ServerStatus *plugin_;
   Servers servers_;
-  int width_ = 0, height_ = 0, tile_ = -1, slots_ = 0, row_h_ = 0, pitch_ = 0, dot_ = 0, top_ = 0, pct_w_ = 0;
+  int width_ = 0, height_ = 0, tile_ = -1, slots_ = 0, row_h_ = 0, pitch_ = 0, dot_ = 0, top_ = 0;
   bool single_ = false;
   Slot slot_[MAX_SERVERS];
   lv_obj_t *note_{}, *badge_{}, *badge_icon_{}, *title_{}, *sub_{}, *third_{}, *head_{}, *tally_{};
