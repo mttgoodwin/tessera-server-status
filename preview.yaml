@@ -3,11 +3,11 @@ tiles:
   - tile: servers
     name: Servers
     options:
-      status1: binary_sensor.nas_ping
-      info1: sensor.nas_ping_round_trip_time
-      status2: binary_sensor.proxmox_ping
-      info2: sensor.proxmox_uptime
-      status3: binary_sensor.pihole_ping
+      status1: sensor.nas_status
+      info1: sensor.nas_response_time
+      status2: sensor.proxmox_status
+      info2: sensor.proxmox_response_time
+      status3: sensor.pihole_status
     sizes: [2x1, 2x2]
   - tile: servers
     name: Nothing chosen yet
@@ -15,8 +15,8 @@ tiles:
 
 # states: entities as Home Assistant has them (docs/PREVIEW.md). Check the exact shape there before relying on this.
 states:
-  binary_sensor.nas_ping: { state: "on", name: "NAS" }
-  sensor.nas_ping_round_trip_time: { state: "1.8", attributes: { unit_of_measurement: ms } }
-  binary_sensor.proxmox_ping: { state: "on", name: "Proxmox" }
-  sensor.proxmox_uptime: { state: "2026-10-01T08:00:00+00:00" }
-  binary_sensor.pihole_ping: { state: "off", name: "Pi-hole" }
+  sensor.nas_status: { state: "up", name: "NAS" }
+  sensor.nas_response_time: { state: "0", attributes: { unit_of_measurement: ms } }
+  sensor.proxmox_status: { state: "up", name: "Proxmox" }
+  sensor.proxmox_response_time: { state: "152", attributes: { unit_of_measurement: ms } }
+  sensor.pihole_status: { state: "down", name: "Pi-hole" }

@@ -1,6 +1,9 @@
 # Changelog
 
 ## 0.3.0 - 2026-11-11
+- Uptime Kuma: its Status sensors (up, down, pending, maintenance) work as a server's status, beside Ping.
+- Pending shows in amber, maintenance in grey; a response time of 0 ms shows as <1 ms.
+- The card says how long a server has been up.
 - A top bar item: the server that is down, in red, only while one is.
 - A single cell is a status badge: a round block in green, amber, red or grey with a check, a cross or a dash in it,
   and the name (or the summary) and the ping time or uptime under it.
