@@ -10,6 +10,7 @@ from the **Ping** and **Glances** integrations, so it needs no internet service 
 3. In the inspector, for each server (up to six) choose:
    - **status**: the Ping `binary_sensor` (on = up, off = down).
    - **ping time or uptime** (optional): the Ping round-trip-time sensor, or the Glances uptime sensor.
+4. Optional: in a page's top bar, add **Server outage** from the plugins. It shows only while a server is down.
 
 ## Good to know
 
@@ -21,5 +22,7 @@ from the **Ping** and **Glances** integrations, so it needs no internet service 
 - A ping time of 100 ms or more (a detail sensor in `ms`) shows in amber.
 - A detail sensor that holds a number shows it with its unit (`1.8 ms`). One that holds a moment (the Glances uptime
   sensor holds when the machine started) shows how long ago that was (`12d 4h`).
+- The top bar item knows the servers of the tiles on the screen. On a board that keeps only the current page (the
+  2.8-inch CYD), it knows them while their page is shown.
 - The editor finds entities by their name, not their entity id.
 - Ping's round-trip-time sensors are often disabled by default in Home Assistant: enable them on the integration's page.

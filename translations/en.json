@@ -14,7 +14,8 @@
     "age_days": "{d}d {h}h",
     "age_hours": "{h}h {m}m",
     "age_minutes": "{m}m",
-    "since": "since {when}"
+    "since": "since {when}",
+    "bar_some": "1 server down | {n} servers down"
   },
   "app": {
     "name": "Server status",
@@ -35,6 +36,8 @@
     "info5": "Server 5: ping time or uptime",
     "status6": "Server 6",
     "info6": "Server 6: ping time or uptime",
-    "card_name": "All servers"
+    "card_name": "All servers",
+    "bar_label": "Server outage",
+    "bar_example": "nas down"
   }
 }

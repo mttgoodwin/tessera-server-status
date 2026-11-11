@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0 - 2026-11-11
+- A top bar item: the server that is down, in red, only while one is.
+- An icon with the status: on a single cell above the number, and in the header of a larger tile.
+- Thin lines between the rows, a little more room on large screens, and a server without data in a softer colour.
+- The card shows each server on a raised block of its own.
+- The plugin's icon is now one of Tessera's (lan-connect).
+
 ## 0.2.0 - 2026-11-11
 - A single cell shows how many servers are up, big, in green or red, and which one is down.
 - Larger tiles have a header, and list the servers that are down first.
