@@ -4,21 +4,32 @@ tiles:
     name: Servers
     options:
       status1: sensor.nas_status
-      info1: sensor.nas_response_time
-      status2: sensor.proxmox_status
-      info2: sensor.proxmox_response_time
+      info1: sensor.nas_uptime
       uptime1: sensor.nas_uptime_30_days
+      status2: sensor.proxmox_status
+      info2: sensor.proxmox_uptime
+      uptime2: sensor.proxmox_uptime_30_days
       status3: sensor.pihole_status
-    sizes: [2x1, 2x2]
+      status4: sensor.backup_status
+    sizes: [2x1, 2x2, 4x2]
+  - tile: servers
+    name: One server
+    options:
+      status1: sensor.nas_status
+      info1: sensor.nas_uptime
+      uptime1: sensor.nas_uptime_30_days
+    sizes: [1x1]
   - tile: servers
     name: Nothing chosen yet
     sizes: [1x1]
 
 # states: entities as Home Assistant has them (docs/PREVIEW.md). Check the exact shape there before relying on this.
 states:
-  sensor.nas_status: { state: "up", name: "NAS" }
-  sensor.nas_response_time: { state: "0", attributes: { unit_of_measurement: ms } }
-  sensor.proxmox_status: { state: "up", name: "Proxmox" }
-  sensor.proxmox_response_time: { state: "152", attributes: { unit_of_measurement: ms } }
-  sensor.pihole_status: { state: "down", name: "Pi-hole" }
+  sensor.nas_status: { state: "up", name: "NAS Status" }
+  sensor.nas_uptime: { state: "2026-10-31T08:00:00+00:00", name: "NAS Uptime" }
   sensor.nas_uptime_30_days: { state: "99.9976209168986", name: "NAS Uptime (30 days)", attributes: { unit_of_measurement: "%" } }
+  sensor.proxmox_status: { state: "up", name: "Proxmox Status" }
+  sensor.proxmox_uptime: { state: "73", name: "Proxmox Uptime", attributes: { unit_of_measurement: h } }
+  sensor.proxmox_uptime_30_days: { state: "99.2", name: "Proxmox Uptime (30 days)", attributes: { unit_of_measurement: "%" } }
+  sensor.pihole_status: { state: "down", name: "Pi-hole Status" }
+  sensor.backup_status: { state: "pending", name: "Backup Status" }
