@@ -290,11 +290,19 @@ static constexpr uint32_t ICON_CROSS = 0xF0156;     // close
 static constexpr uint32_t ICON_DASH = 0xF0374;      // minus
 static constexpr uint32_t ICON_DOTS = 0xF01D8;      // dots-horizontal: pending
 
-// From a label's top to the baseline of its text. Labels of two fonts side by side line up on their baselines, as
-// text does, not on their middles: a bold name and a small number beside it then read as one line.
+// From a label's top to the baseline of its text, as the font says it.
 static int baseline(lv_obj_t *label) {
   const lv_font_t *font = lv_obj_get_style_text_font(label, LV_PART_MAIN);
   return font ? font->line_height - font->base_line : 0;
+}
+
+// Where a smaller label beside `big` (at `big_y`) goes so the two read as one line. Centring the two puts the small
+// text too high next to bold text, and the fonts' own baselines put it too low on the glass (photos of a Guition
+// 4-inch, both ways): halfway between the two lines it up.
+static int beside(lv_obj_t *big, int big_y, lv_obj_t *small) {
+  const int centred = (lv_font_get_line_height(lv_obj_get_style_text_font(big, LV_PART_MAIN)) -
+                       lv_font_get_line_height(lv_obj_get_style_text_font(small, LV_PART_MAIN))) / 2;
+  return big_y + (centred + baseline(big) - baseline(small)) / 2;
 }
 
 // A round block: a dot, or a badge.
@@ -388,19 +396,19 @@ class ServersTile : public tessera::Tile {
     return l;
   }
 
-  // The badge and up to three lines under it, as many as leave the badge at least twice an icon's height. The badge
-  // never grows past three icons, so the glyph in it never looks lost.
+  // The badge and up to three lines under it. The lines come first: the badge gives up room for them down to a little
+  // more than its icon, and never grows past two and a half icons, so the glyph in it never looks lost.
   void make_badge(lv_obj_t *parent) {
     const int icon = ui::line_height(Font::ICON);
     const int title_h = ui::line_height(Font::TITLE), sub_h = ui::line_height(Font::BODY);
-    const int gap = ui::px(ui::large() ? 10 : 6), least = icon + ui::px(ui::large() ? 18 : 12);
+    const int gap = ui::px(ui::large() ? 6 : 4), least = icon + ui::px(ui::large() ? 10 : 6);
     int lines = servers_.count == 1 && servers_.list[0].has_uptime ? 2 : 1;
     int room = height_ - gap - title_h - lines * sub_h;
     while (lines > 0 && room < least) {
       lines--;
       room += sub_h;
     }
-    const int d = std::max(least, std::min({width_ - ui::px(8), room, icon * 3}));
+    const int d = std::max(least, std::min({width_ - ui::px(8), room, icon * 5 / 2}));
     const int total = d + gap + title_h + lines * sub_h;
     const int y = std::max(0, (height_ - total) / 2);
     badge_ = round_block(parent, d);
@@ -425,7 +433,7 @@ class ServersTile : public tessera::Tile {
       lv_obj_set_pos(head_, 0, 0);
       tally_ = ui::label(parent, Font::BODY, theme::MUTED);
       lv_obj_set_style_text_align(tally_, LV_TEXT_ALIGN_RIGHT, 0);
-      lv_obj_set_y(tally_, baseline(head_) - baseline(tally_));
+      lv_obj_set_y(tally_, beside(head_, 0, tally_));
     }
     slots_ = std::max(1, std::min(servers_.count, (height_ - top_) / row_h_));
     // The rows share the room below the header, up to a row of air each; what is left over goes under the last.
@@ -440,10 +448,10 @@ class ServersTile : public tessera::Tile {
       lv_obj_set_pos(r.name, dot_ + ui::px(ui::large() ? 12 : 8), name_y);
       r.time = ui::label(parent, Font::BODY, theme::INK_SOFT);
       lv_obj_set_style_text_align(r.time, LV_TEXT_ALIGN_RIGHT, 0);
-      lv_obj_set_y(r.time, name_y + baseline(r.name) - baseline(r.time));
+      lv_obj_set_y(r.time, beside(r.name, name_y, r.time));
       r.pct = ui::label(parent, Font::BODY, theme::MUTED);
       lv_obj_set_style_text_align(r.pct, LV_TEXT_ALIGN_RIGHT, 0);
-      lv_obj_set_y(r.pct, name_y + baseline(r.name) - baseline(r.pct));
+      lv_obj_set_y(r.pct, beside(r.name, name_y, r.pct));
     }
   }
 
