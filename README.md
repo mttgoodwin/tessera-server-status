@@ -13,9 +13,11 @@ from the **Ping** and **Glances** integrations, so it needs no internet service 
 
 ## Good to know
 
-- A green dot is up, red is down, grey is unknown or unavailable. A server that is down says "Down" in place of its detail.
-- A detail sensor that holds a number shows it with its unit (`1.8 ms`). One that holds a boot time (the Glances
-  uptime sensor) shows how long the machine has been up (`12d 4h`).
-- A header says how many servers are up (green when all are, red when any is down) when the tile is big enough.
-- Servers that are down come first, so an outage stays in view. The tile shows as many servers as fit its size.
+- **A single cell** shows how many servers are up (`4/5`), green when all are and red when one is down, with the name
+  of the one that is down under it. With one server it says Up or Down, with its ping time or uptime.
+- **A larger tile** lists the servers: a green dot is up, red is down, grey has no data. Servers that are down come
+  first and say for how long (`Down 12m`), so an outage stays in view on a tile too small for all of them.
+- A detail sensor that holds a number shows it with its unit (`1.8 ms`). One that holds a moment (the Glances uptime
+  sensor holds when the machine started) shows how long ago that was (`12d 4h`).
+- The editor finds entities by their name, not their entity id.
 - Ping's round-trip-time sensors are often disabled by default in Home Assistant: enable them on the integration's page.

@@ -1,30 +1,38 @@
 {
-  "_meta": { "name": "English" },
+  "_meta": {
+    "name": "English"
+  },
   "screen": {
     "choose": "Choose a server",
     "up": "Up",
     "down": "Down",
-    "unknown": "?",
-    "all_up": "All servers up",
-    "some_down": "1 server down | {n} servers down",
-    "some_unknown": "Status unknown"
+    "down_for": "Down {time}",
+    "no_data": "No data",
+    "all_up": "All up",
+    "one_down": "{name} down",
+    "some_down": "{n} down | {n} down",
+    "age_days": "{d}d {h}h",
+    "age_hours": "{h}h {m}m",
+    "age_minutes": "{m}m"
   },
   "app": {
     "name": "Server status",
     "summary": "Shows whether your servers are up, with ping or uptime, from Home Assistant.",
     "tile_name": "Server status",
-    "tile_example": "3 of 3 servers up",
-    "status1": "Server 1: status (ping)",
-    "info1": "Server 1: ping time or uptime (optional)",
-    "status2": "Server 2: status (ping)",
-    "info2": "Server 2: ping time or uptime (optional)",
-    "status3": "Server 3: status (ping)",
-    "info3": "Server 3: ping time or uptime (optional)",
-    "status4": "Server 4: status (ping)",
-    "info4": "Server 4: ping time or uptime (optional)",
-    "status5": "Server 5: status (ping)",
-    "info5": "Server 5: ping time or uptime (optional)",
-    "status6": "Server 6: status (ping)",
-    "info6": "Server 6: ping time or uptime (optional)"
+    "tile_example": "3/3 servers up",
+    "status_hint": "The Ping binary sensor of this server. Search by its name.",
+    "info_hint": "Optional: a ping time sensor, or the Glances uptime sensor.",
+    "status1": "Server 1",
+    "info1": "Server 1: ping time or uptime",
+    "status2": "Server 2",
+    "info2": "Server 2: ping time or uptime",
+    "status3": "Server 3",
+    "info3": "Server 3: ping time or uptime",
+    "status4": "Server 4",
+    "info4": "Server 4: ping time or uptime",
+    "status5": "Server 5",
+    "info5": "Server 5: ping time or uptime",
+    "status6": "Server 6",
+    "info6": "Server 6: ping time or uptime"
   }
 }

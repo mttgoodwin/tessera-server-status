@@ -19,20 +19,20 @@ tiles:
     name: tile_name
     icon: server
     sizes: { min: 1x1, max: 2x2 }
-    memory: 1800
+    memory: 2800
     example: tile_example
     options:
       # Server 1..6: a status entity (Ping: binary_sensor, on = up) and an optional detail entity
       # (Ping round-trip time, or the Glances uptime sensor).
-      - { id: status1, kind: entity, domains: [binary_sensor], label: status1 }
-      - { id: info1, kind: entity, domains: [sensor], attributes: [unit_of_measurement], label: info1 }
-      - { id: status2, kind: entity, domains: [binary_sensor], label: status2 }
-      - { id: info2, kind: entity, domains: [sensor], attributes: [unit_of_measurement], label: info2 }
-      - { id: status3, kind: entity, domains: [binary_sensor], label: status3 }
-      - { id: info3, kind: entity, domains: [sensor], attributes: [unit_of_measurement], label: info3 }
-      - { id: status4, kind: entity, domains: [binary_sensor], label: status4 }
-      - { id: info4, kind: entity, domains: [sensor], attributes: [unit_of_measurement], label: info4 }
-      - { id: status5, kind: entity, domains: [binary_sensor], label: status5 }
-      - { id: info5, kind: entity, domains: [sensor], attributes: [unit_of_measurement], label: info5 }
-      - { id: status6, kind: entity, domains: [binary_sensor], label: status6 }
-      - { id: info6, kind: entity, domains: [sensor], attributes: [unit_of_measurement], label: info6 }
+      - { id: status1, kind: entity, domains: [binary_sensor], label: status1, hint: status_hint }
+      - { id: info1, kind: entity, domains: [sensor], attributes: [unit_of_measurement], label: info1, hint: info_hint }
+      - { id: status2, kind: entity, domains: [binary_sensor], label: status2, hint: status_hint }
+      - { id: info2, kind: entity, domains: [sensor], attributes: [unit_of_measurement], label: info2, hint: info_hint }
+      - { id: status3, kind: entity, domains: [binary_sensor], label: status3, hint: status_hint }
+      - { id: info3, kind: entity, domains: [sensor], attributes: [unit_of_measurement], label: info3, hint: info_hint }
+      - { id: status4, kind: entity, domains: [binary_sensor], label: status4, hint: status_hint }
+      - { id: info4, kind: entity, domains: [sensor], attributes: [unit_of_measurement], label: info4, hint: info_hint }
+      - { id: status5, kind: entity, domains: [binary_sensor], label: status5, hint: status_hint }
+      - { id: info5, kind: entity, domains: [sensor], attributes: [unit_of_measurement], label: info5, hint: info_hint }
+      - { id: status6, kind: entity, domains: [binary_sensor], label: status6, hint: status_hint }
+      - { id: info6, kind: entity, domains: [sensor], attributes: [unit_of_measurement], label: info6, hint: info_hint }
