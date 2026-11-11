@@ -14,8 +14,9 @@ from the **Ping** and **Glances** integrations, so it needs no internet service 
 
 ## Good to know
 
-- **A single cell** shows how many servers are up (`4/5`), green when all are and red when one is down, with the name
-  of the one that is down under it. With one server it says Up or Down, with its ping time or uptime.
+- **A single cell** is a status badge: a round block, green with a check when all is up, amber when a ping is slow,
+  red with a cross when something is down, grey with a dash without data. Under it the server's name and its ping
+  time or uptime, or for several servers what is down and how many are up (`4/5`).
 - **A larger tile** lists the servers: a green dot is up, red is down, grey has no data. Servers that are down come
   first and say for how long (`Down 12m`), so an outage stays in view on a tile too small for all of them.
 - **A tap** opens a card with every server: its state, its ping time or uptime, and since when it is up or down.

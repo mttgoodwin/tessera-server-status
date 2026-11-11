@@ -2,7 +2,9 @@
 
 ## 0.3.0 - 2026-11-11
 - A top bar item: the server that is down, in red, only while one is.
-- An icon with the status: on a single cell above the number, and in the header of a larger tile.
+- A single cell is a status badge: a round block in green, amber, red or grey with a check, a cross or a dash in it,
+  and the name (or the summary) and the ping time or uptime under it.
+- An icon with the status in the header of a larger tile.
 - Thin lines between the rows, a little more room on large screens, and a server without data in a softer colour.
 - The card shows each server on a raised block of its own.
 - The plugin's icon is now one of Tessera's (lan-connect).

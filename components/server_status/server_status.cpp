@@ -185,6 +185,9 @@ class Servers {
 static constexpr uint32_t ICON_ALL_UP = 0xF0C54;    // check-network-outline
 static constexpr uint32_t ICON_DOWN = 0xF0C5F;      // close-network-outline
 static constexpr uint32_t ICON_UNKNOWN = 0xF05D6;   // alert-circle-outline
+static constexpr uint32_t ICON_CHECK = 0xF012C;     // check: in the badge of a single cell
+static constexpr uint32_t ICON_CROSS = 0xF0156;     // close
+static constexpr uint32_t ICON_DASH = 0xF0374;      // minus
 
 static uint32_t icon_of(const Servers &s) { return s.down ? ICON_DOWN : s.up == s.count ? ICON_ALL_UP : ICON_UNKNOWN; }
 
@@ -228,15 +231,31 @@ class ServersTile : public tessera::Tile {
     }
     single_ = c.columns < 2 && c.rows < 2;
     if (single_) {
-      icon_ = ui::label(c.parent, Font::ICON, theme::MUTED);
-      lv_obj_set_width(icon_, width_);
-      lv_obj_set_style_text_align(icon_, LV_TEXT_ALIGN_CENTER, 0);
-      big_ = ui::label(c.parent, Font::VALUE, theme::INK);
+      // A badge: a round block as large as the cell allows, filled in the colour of the state, with a check, a cross
+      // or a dash in it. Under it the name (or the summary), and a line with the detail where there is room.
+      const int title_h = ui::line_height(Font::BODY_LARGE), sub_h = ui::line_height(Font::BODY);
+      const int gap = ui::px(ui::large() ? 8 : 5), least = ui::line_height(Font::ICON) + ui::px(12);
+      int room = height_ - gap - title_h - sub_h;
+      with_sub_ = room >= least;
+      if (!with_sub_) room += sub_h;
+      const int d = std::max(least, std::min(width_, room));
+      const int total = d + gap + title_h + (with_sub_ ? sub_h : 0);
+      const int y = std::max(0, (height_ - total) / 2);
+      badge_ = ui::block(c.parent, theme::TRACK);
+      lv_obj_set_size(badge_, d, d);
+      lv_obj_set_style_radius(badge_, d / 2, 0);
+      lv_obj_set_pos(badge_, (width_ - d) / 2, y);
+      badge_icon_ = ui::label(badge_, Font::ICON, theme::ON_ACCENT);
+      lv_label_set_long_mode(badge_icon_, LV_LABEL_LONG_CLIP);
+      lv_obj_center(badge_icon_);  // as the line badge of ov_departures centres its number
+      big_ = ui::label(c.parent, Font::BODY_LARGE, theme::INK);
       lv_obj_set_width(big_, width_);
       lv_obj_set_style_text_align(big_, LV_TEXT_ALIGN_CENTER, 0);
+      lv_obj_set_pos(big_, 0, y + d + gap);
       sub_ = ui::label(c.parent, Font::BODY, theme::MUTED);
       lv_obj_set_width(sub_, width_);
       lv_obj_set_style_text_align(sub_, LV_TEXT_ALIGN_CENTER, 0);
+      lv_obj_set_pos(sub_, 0, y + d + gap + title_h);
       return;
     }
     const int line = ui::line_height(Font::BODY);
@@ -316,40 +335,31 @@ class ServersTile : public tessera::Tile {
 
   void paint_single(const char *tally, uint32_t epoch) {
     const Server &first = servers_.list[servers_.order[0]];
-    std::string big, sub;
-    Tone tone = servers_.all();
-    uint32_t icon = icon_of(servers_);
+    std::string title, sub;
+    Tone tone, sub_tone = Tone::NORMAL;
+    int state;  // 1 all up, 0 something down, -1 not known
     if (servers_.count == 1) {
-      // One server: its state big, its name and its ping time or uptime under it.
-      big = plugin_->text(first.up == 1 ? "up" : first.up == 0 ? "down" : "no_data");
-      const std::string more = first.up == 0 ? servers_.age(first.since, epoch) : first.up == 1 ? servers_.detail(first, epoch) : "";
-      sub = more.empty() ? first.name : first.name + " · " + more;
+      // One server: its name, and its ping time or uptime (or how long it is down) under it.
       tone = servers_.tone(first);
-      icon = first.up == 1 ? ICON_ALL_UP : first.up == 0 ? ICON_DOWN : ICON_UNKNOWN;
+      state = first.up;
+      title = first.name;
+      sub = first.up == 1 && first.has_info ? servers_.detail(first, epoch) : servers_.state_text(first, epoch);
+      sub_tone = tone == Tone::GOOD ? Tone::NORMAL : tone;
     } else {
-      big = tally;
-      sub = servers_.summary();
+      // Several: what is the matter (or that all is well), and how many are up.
+      tone = servers_.all();
+      state = servers_.down ? 0 : servers_.up == servers_.count ? 1 : -1;
+      title = servers_.summary();
+      sub = tally;
     }
-    Font face = Font::TITLE;
-    for (Font f : {Font::VALUE, Font::HEADLINE, Font::TITLE}) {
-      face = f;
-      if (ui::text_width(big, f) <= width_) break;
-    }
-    ui::set_font(big_, face);
-    ui::set_text(big_, big);
-    ui::set_tone(big_, tone, theme::INK);
-    ui::set_text(sub_, sub);
-    // The icon above the number, where the cell has room for all three.
-    const int icon_h = ui::line_height(Font::ICON), big_h = ui::line_height(face), sub_h = ui::line_height(Font::BODY);
-    const bool with_icon = icon_h + big_h + sub_h <= height_;
-    ui::set_text(icon_, with_icon ? ui::icon(icon) : std::string());
-    ui::set_tone(icon_, tone, theme::MUTED);
-    const int total = (with_icon ? icon_h : 0) + big_h + sub_h;
-    int y = std::max(0, (height_ - total) / 2);
-    lv_obj_set_pos(icon_, 0, y);
-    if (with_icon) y += icon_h;
-    lv_obj_set_pos(big_, 0, y);
-    lv_obj_set_pos(sub_, 0, y + big_h);
+    const uint32_t icon = state == 1 ? ICON_CHECK : state == 0 ? ICON_CROSS : ICON_DASH;
+    ui::set_fill(badge_, tone, theme::TRACK);
+    ui::set_text(badge_icon_, ui::icon(icon));
+    ui::set_color(badge_icon_, tone == Tone::NORMAL ? theme::MUTED : theme::ON_ACCENT);
+    ui::set_text(big_, title);
+    ui::set_color(big_, state == -1 ? theme::MUTED : theme::INK);
+    ui::set_text(sub_, with_sub_ ? sub : std::string());
+    ui::set_tone(sub_, sub_tone, theme::MUTED);
   }
 
   void paint_list(const char *tally, uint32_t epoch) {
@@ -388,10 +398,10 @@ class ServersTile : public tessera::Tile {
   ServerStatus *plugin_;
   Servers servers_;
   int width_ = 0, height_ = 0, tile_ = -1, slots_ = 0, row_h_ = 0, dot_ = 0, top_ = 0, lines_n_ = 0;
-  bool single_ = false;
+  bool single_ = false, with_sub_ = true;
   Slot slot_[MAX_SERVERS];
   lv_obj_t *lines_[MAX_SERVERS + 1] = {};
-  lv_obj_t *note_{}, *icon_{}, *big_{}, *sub_{}, *head_icon_{}, *head_{}, *tally_{};
+  lv_obj_t *note_{}, *badge_{}, *badge_icon_{}, *big_{}, *sub_{}, *head_icon_{}, *head_{}, *tally_{};
 };
 
 // The card a tap on the tile opens: every server on a raised block of its own. Its name with its state in its colour,
