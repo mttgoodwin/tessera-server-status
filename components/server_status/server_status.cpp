@@ -142,8 +142,8 @@ class Servers {
     if (!since || !epoch || static_cast<long>(epoch) < since) return "";
     const long s = static_cast<long>(epoch) - since;
     const std::string d = std::to_string(s / 86400), h = std::to_string(s % 86400 / 3600), m = std::to_string(s % 3600 / 60);
-    if (s >= 86400) return tessera::fill(tessera::fill(plugin_->text("age_days"), "d", d), "h", h);
-    if (s >= 3600) return tessera::fill(tessera::fill(plugin_->text("age_hours"), "h", h), "m", m);
+    if (s >= 86400) return tessera::fill(tessera::fill(plugin_->text("age_days"), "d", d).c_str(), "h", h);
+    if (s >= 3600) return tessera::fill(tessera::fill(plugin_->text("age_hours"), "h", h).c_str(), "m", m);
     return tessera::fill(plugin_->text("age_minutes"), "m", m);
   }
 
