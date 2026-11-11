@@ -4,7 +4,10 @@
     "choose": "Choose a server",
     "up": "Up",
     "down": "Down",
-    "unknown": "?"
+    "unknown": "?",
+    "all_up": "All servers up",
+    "some_down": "1 server down | {n} servers down",
+    "some_unknown": "Status unknown"
   },
   "app": {
     "name": "Server status",
@@ -18,6 +21,10 @@
     "status3": "Server 3: status (ping)",
     "info3": "Server 3: ping time or uptime (optional)",
     "status4": "Server 4: status (ping)",
-    "info4": "Server 4: ping time or uptime (optional)"
+    "info4": "Server 4: ping time or uptime (optional)",
+    "status5": "Server 5: status (ping)",
+    "info5": "Server 5: ping time or uptime (optional)",
+    "status6": "Server 6: status (ping)",
+    "info6": "Server 6: ping time or uptime (optional)"
   }
 }
