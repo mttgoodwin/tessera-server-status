@@ -20,12 +20,12 @@ entities from **Uptime Kuma** (or the **Ping** integration), so it needs no inte
 
 ## Good to know
 
-- **A single cell** is a status badge: a round block, green with a check when all is up, amber when a ping is slow,
-  red with a cross when something is down, grey with a dash without data. Under it the server's name and its ping
-  time or uptime, or for several servers what is down and how many are up (`4/5`).
-- **A larger tile** lists the servers: a green dot is up, amber is slow (100 ms or more) or pending (Uptime Kuma
-  retrying), red is down, grey is in maintenance or has no data. Servers that are down come
-  first and say for how long (`Down 12m`), so an outage stays in view on a tile too small for all of them.
+- **A single cell** is a status badge: a soft round block, green with a check when all is up, amber when the uptime
+  is low or Uptime Kuma is retrying, red with a cross when something is down, grey with a dash without data. Under it
+  the server's name, how long it is up and its uptime; for several servers what is down and how many are up.
+- **A larger tile** says what is the matter ("All up", "nas down") and how many are up, then lists the servers:
+  a dot in the colour of its state, the name, and how long it is up and its uptime in two aligned columns. Servers
+  that are down come first and say for how long (`Down 12m`), so an outage stays in view.
 - **A tap** opens a card with every server: its state, its ping time or uptime, and since when it is up or down.
 - A ping time of 100 ms or more (a detail sensor in `ms`) shows in amber.
 - A row shows how long the server is up and its uptime percentage: `12d 4h · 99.998%`. An uptime below 99.9% shows

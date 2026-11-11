@@ -282,29 +282,30 @@ class Servers {
 };
 
 // Icons of Tessera's set (screen_manager/app/tile_icons.py).
-static constexpr uint32_t ICON_ALL_UP = 0xF0C54;    // check-network-outline
 static constexpr uint32_t ICON_DOWN = 0xF0C5F;      // close-network-outline
-static constexpr uint32_t ICON_UNKNOWN = 0xF05D6;   // alert-circle-outline
 static constexpr uint32_t ICON_CHECK = 0xF012C;     // check: in the badge of a single cell
 static constexpr uint32_t ICON_CROSS = 0xF0156;     // close
 static constexpr uint32_t ICON_DASH = 0xF0374;      // minus
 static constexpr uint32_t ICON_DOTS = 0xF01D8;      // dots-horizontal: pending
 
-static uint32_t icon_of(const Servers &s) { return s.down ? ICON_DOWN : s.all_well() ? ICON_ALL_UP : ICON_UNKNOWN; }
-
-// A thin line between rows, in the theme's colour for lines.
-static lv_obj_t *divider(lv_obj_t *parent, int width, int y) {
-  lv_obj_t *line = ui::block(parent, theme::LINE);
-  lv_obj_set_style_radius(line, 0, 0);
-  lv_obj_set_size(line, width, std::max(1, ui::px(1)));
-  lv_obj_set_pos(line, 0, y);
-  return line;
+// A round block: a dot, or a badge.
+static lv_obj_t *round_block(lv_obj_t *parent, int d) {
+  lv_obj_t *b = ui::block(parent, theme::TRACK);
+  lv_obj_set_size(b, d, d);
+  lv_obj_set_style_radius(b, d / 2, 0);
+  return b;
 }
 
-// The tile. A single cell says it in one glance: an icon and how many servers are up, big, in green or red, and under
-// it which one is down. A larger tile has a header and a row per server: a dot, its name, and its ping time or uptime.
-// The servers that are down come first, so an outage is in view on a tile too small for all of them. A tap opens the
-// card. Every change is reported to the plugin, for the top bar.
+// The tile, in Tessera's own look: few parts, bold names, muted details, and colour only where something is wrong.
+//
+// A single cell is a status badge: a soft round block tinted in the colour of the state, with a check, a cross or a
+// dash in that colour, and under it the name in bold and how long it is up. Several servers on a single cell: the
+// worst state, what is the matter, and how many are up.
+//
+// A larger tile is a list: a line saying what is the matter ("All up" in green, "nas down" in red) with the count
+// beside it, then a row per server: a dot, its name in bold, and on the right how long it is up and its uptime
+// percentage in two aligned columns. The rows share the height, so a tile with few servers does not leave a hole.
+// Servers that are down come first. A tap opens the card. Every change is reported to the plugin, for the top bar.
 class ServersTile : public tessera::Tile {
  public:
   explicit ServersTile(ServerStatus *plugin) : plugin_(plugin), servers_(plugin) {}
@@ -333,78 +334,8 @@ class ServersTile : public tessera::Tile {
       return;
     }
     single_ = c.columns < 2 && c.rows < 2;
-    if (single_) {
-      // A badge: a round block as large as the cell allows, filled in the colour of the state, with a check, a cross
-      // or a dash in it. Under it the name (or the summary), a line with the response time, and for one server with an
-      // uptime sensor a line with its uptime, as far as there is room: the badge keeps at least an icon's size.
-      const int title_h = ui::line_height(Font::BODY_LARGE), sub_h = ui::line_height(Font::BODY);
-      const int gap = ui::px(ui::large() ? 8 : 5), least = ui::line_height(Font::ICON) + ui::px(12);
-      with_third_ = servers_.count == 1 && servers_.list[0].has_uptime;
-      int room = height_ - gap - title_h - sub_h - (with_third_ ? sub_h : 0);
-      if (with_third_ && room < least) {
-        with_third_ = false;
-        room += sub_h;
-      }
-      with_sub_ = room >= least;
-      if (!with_sub_) room += sub_h;
-      const int d = std::max(least, std::min(width_, room));
-      const int total = d + gap + title_h + (with_sub_ ? sub_h : 0) + (with_third_ ? sub_h : 0);
-      const int y = std::max(0, (height_ - total) / 2);
-      badge_ = ui::block(c.parent, theme::TRACK);
-      lv_obj_set_size(badge_, d, d);
-      lv_obj_set_style_radius(badge_, d / 2, 0);
-      lv_obj_set_pos(badge_, (width_ - d) / 2, y);
-      badge_icon_ = ui::label(badge_, Font::ICON, theme::ON_ACCENT);
-      lv_label_set_long_mode(badge_icon_, LV_LABEL_LONG_CLIP);
-      lv_obj_center(badge_icon_);  // as the line badge of ov_departures centres its number
-      big_ = ui::label(c.parent, Font::BODY_LARGE, theme::INK);
-      lv_obj_set_width(big_, width_);
-      lv_obj_set_style_text_align(big_, LV_TEXT_ALIGN_CENTER, 0);
-      lv_obj_set_pos(big_, 0, y + d + gap);
-      sub_ = ui::label(c.parent, Font::BODY, theme::MUTED);
-      lv_obj_set_width(sub_, width_);
-      lv_obj_set_style_text_align(sub_, LV_TEXT_ALIGN_CENTER, 0);
-      lv_obj_set_pos(sub_, 0, y + d + gap + title_h);
-      if (with_third_) {
-        third_ = ui::label(c.parent, Font::BODY, theme::MUTED);
-        lv_obj_set_width(third_, width_);
-        lv_obj_set_style_text_align(third_, LV_TEXT_ALIGN_CENTER, 0);
-        lv_obj_set_pos(third_, 0, y + d + gap + title_h + sub_h);
-      }
-      return;
-    }
-    const int line = ui::line_height(Font::BODY);
-    row_h_ = line + ui::px(ui::large() ? 12 : 7);
-    dot_ = ui::px(ui::large() ? 10 : 8);
-    // A header only with a second server, and room for it above two rows.
-    const int head_line = std::max(ui::line_height(Font::TITLE), ui::line_height(Font::ICON_SMALL));
-    const int head_h = head_line + ui::px(ui::large() ? 10 : 6);
-    if (servers_.count > 1 && height_ >= head_h + 2 * row_h_) {
-      top_ = head_h;
-      head_icon_ = ui::label(c.parent, Font::ICON_SMALL, theme::MUTED);
-      lv_obj_set_pos(head_icon_, 0, (head_line - ui::line_height(Font::ICON_SMALL)) / 2);
-      head_ = ui::label(c.parent, Font::TITLE, theme::INK);
-      lv_obj_set_pos(head_, ui::line_height(Font::ICON_SMALL) + ui::px(6), (head_line - ui::line_height(Font::TITLE)) / 2);
-      tally_ = ui::label(c.parent, Font::TITLE, theme::MUTED);
-      lv_obj_set_style_text_align(tally_, LV_TEXT_ALIGN_RIGHT, 0);
-      lv_obj_set_y(tally_, (head_line - ui::line_height(Font::TITLE)) / 2);
-      lines_[lines_n_++] = divider(c.parent, width_, top_ - ui::px(ui::large() ? 4 : 3));
-    }
-    slots_ = std::max(1, std::min(servers_.count, (height_ - top_) / row_h_));
-    for (int i = 0; i < slots_; i++) {
-      Slot &r = slot_[i];
-      const int y = top_ + i * row_h_;
-      if (i > 0) lines_[lines_n_++] = divider(c.parent, width_, y);
-      r.dot = ui::block(c.parent, theme::MUTED);
-      lv_obj_set_size(r.dot, dot_, dot_);
-      lv_obj_set_style_radius(r.dot, dot_ / 2, 0);
-      lv_obj_set_pos(r.dot, 0, y + (row_h_ - dot_) / 2);
-      r.name = ui::label(c.parent, Font::BODY, theme::INK);
-      lv_obj_set_pos(r.name, dot_ + ui::px(10), y + (row_h_ - line) / 2);
-      r.info = ui::label(c.parent, Font::BODY, theme::MUTED);
-      lv_obj_set_style_text_align(r.info, LV_TEXT_ALIGN_RIGHT, 0);
-      lv_obj_set_y(r.info, y + (row_h_ - line) / 2);
-    }
+    if (single_) make_badge(c.parent);
+    else make_list(c.parent);
   }
 
   void on_state(JsonObjectConst data) override {
@@ -414,19 +345,18 @@ class ServersTile : public tessera::Tile {
 
   void on_tick(uint32_t epoch) override { paint(epoch); }
 
-  // Light and dark: the plain colours here, the ones that mean something in paint().
+  // Light and dark: the plain colours here, the ones that mean something in paint(), which follows.
   void on_theme() override {
     if (note_) ui::set_color(note_, theme::MUTED);
-    if (big_) ui::set_color(big_, theme::INK);
+    if (title_) ui::set_color(title_, theme::INK);
     if (sub_) ui::set_color(sub_, theme::MUTED);
     if (third_) ui::set_color(third_, theme::MUTED);
     if (head_) ui::set_color(head_, theme::INK);
     if (tally_) ui::set_color(tally_, theme::MUTED);
-    for (int i = 0; i < lines_n_; i++) ui::set_fill(lines_[i], Tone::NORMAL, theme::LINE);
     for (int i = 0; i < slots_; i++) {
-      ui::set_fill(slot_[i].dot, Tone::NORMAL, theme::MUTED);
       ui::set_color(slot_[i].name, theme::INK);
-      ui::set_color(slot_[i].info, theme::MUTED);
+      ui::set_color(slot_[i].time, theme::INK_SOFT);
+      ui::set_color(slot_[i].pct, theme::MUTED);
     }
     paint(tessera::epoch());
   }
@@ -438,89 +368,191 @@ class ServersTile : public tessera::Tile {
 
  private:
   struct Slot {
-    lv_obj_t *dot{}, *name{}, *info{};
+    lv_obj_t *dot{}, *name{}, *time{}, *pct{};
   };
+
+  lv_obj_t *centred(lv_obj_t *parent, Font font, theme::Role role, int y) {
+    lv_obj_t *l = ui::label(parent, font, role);
+    lv_obj_set_width(l, width_);
+    lv_obj_set_style_text_align(l, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_pos(l, 0, y);
+    return l;
+  }
+
+  // The badge and up to three lines under it, as many as leave the badge at least twice an icon's height. The badge
+  // never grows past three icons, so the glyph in it never looks lost.
+  void make_badge(lv_obj_t *parent) {
+    const int icon = ui::line_height(Font::ICON);
+    const int title_h = ui::line_height(Font::TITLE), sub_h = ui::line_height(Font::BODY);
+    const int gap = ui::px(ui::large() ? 10 : 6), least = icon + ui::px(ui::large() ? 18 : 12);
+    int lines = servers_.count == 1 && servers_.list[0].has_uptime ? 2 : 1;
+    int room = height_ - gap - title_h - lines * sub_h;
+    while (lines > 0 && room < least) {
+      lines--;
+      room += sub_h;
+    }
+    const int d = std::max(least, std::min({width_ - ui::px(8), room, icon * 3}));
+    const int total = d + gap + title_h + lines * sub_h;
+    const int y = std::max(0, (height_ - total) / 2);
+    badge_ = round_block(parent, d);
+    lv_obj_set_pos(badge_, (width_ - d) / 2, y);
+    badge_icon_ = ui::label(badge_, Font::ICON, theme::MUTED);
+    lv_label_set_long_mode(badge_icon_, LV_LABEL_LONG_CLIP);
+    lv_obj_center(badge_icon_);
+    title_ = centred(parent, Font::TITLE, theme::INK, y + d + gap);
+    if (lines >= 1) sub_ = centred(parent, Font::BODY, theme::MUTED, y + d + gap + title_h);
+    if (lines >= 2) third_ = centred(parent, Font::BODY, theme::MUTED, y + d + gap + title_h + sub_h);
+  }
+
+  void make_list(lv_obj_t *parent) {
+    const int title_h = ui::line_height(Font::TITLE), body_h = ui::line_height(Font::BODY);
+    row_h_ = std::max(title_h, body_h) + ui::px(ui::large() ? 8 : 4);
+    dot_ = ui::px(ui::large() ? 9 : 7);
+    // The line of what is the matter, with a second server and room for it above two rows.
+    const int head_h = title_h + ui::px(ui::large() ? 12 : 6);
+    if (servers_.count > 1 && height_ >= head_h + 2 * row_h_) {
+      top_ = head_h;
+      head_ = ui::label(parent, Font::TITLE, theme::INK);
+      lv_obj_set_pos(head_, 0, 0);
+      tally_ = ui::label(parent, Font::BODY, theme::MUTED);
+      lv_obj_set_style_text_align(tally_, LV_TEXT_ALIGN_RIGHT, 0);
+      lv_obj_set_y(tally_, (title_h - body_h) / 2);
+    }
+    slots_ = std::max(1, std::min(servers_.count, (height_ - top_) / row_h_));
+    // The rows share the room below the header, up to half a row of air each.
+    pitch_ = std::min((height_ - top_) / slots_, row_h_ + row_h_ / 2);
+    pct_w_ = ui::text_width("99.99%", Font::BODY) + ui::px(2);
+    for (int i = 0; i < slots_; i++) {
+      Slot &r = slot_[i];
+      const int y = top_ + i * pitch_ + (pitch_ - row_h_) / 2;
+      r.dot = round_block(parent, dot_);
+      lv_obj_set_pos(r.dot, 0, y + (row_h_ - dot_) / 2);
+      r.name = ui::label(parent, Font::TITLE, theme::INK);
+      lv_obj_set_pos(r.name, dot_ + ui::px(ui::large() ? 12 : 8), y + (row_h_ - title_h) / 2);
+      r.time = ui::label(parent, Font::BODY, theme::INK_SOFT);
+      lv_obj_set_style_text_align(r.time, LV_TEXT_ALIGN_RIGHT, 0);
+      lv_obj_set_y(r.time, y + (row_h_ - body_h) / 2);
+      r.pct = ui::label(parent, Font::BODY, theme::MUTED);
+      lv_obj_set_style_text_align(r.pct, LV_TEXT_ALIGN_RIGHT, 0);
+      lv_obj_set_y(r.pct, y + (row_h_ - body_h) / 2);
+    }
+  }
 
   void paint(uint32_t epoch) {
     if (!servers_.count) return;
-    char tally[12];
-    snprintf(tally, sizeof tally, "%d/%d", servers_.up, servers_.count);
-    if (single_) paint_single(tally, epoch);
-    else paint_list(tally, epoch);
+    if (single_) paint_badge(epoch);
+    else paint_list(epoch);
   }
 
-  void paint_single(const char *tally, uint32_t epoch) {
+  // A tinted block: the colour of the state, faint, so the glyph in that colour stands out on it.
+  static void tint(lv_obj_t *block, Tone tone) {
+    ui::set_fill(block, tone, theme::TRACK);
+    lv_obj_set_style_bg_opa(block, tone == Tone::NORMAL ? LV_OPA_COVER : LV_OPA_20, 0);
+  }
+
+  void paint_badge(uint32_t epoch) {
     const Server &first = servers_.list[servers_.order[0]];
-    std::string title, sub;
-    Tone tone, sub_tone = Tone::NORMAL;
-    int state;  // as a server's: for several, the worst of them
+    std::string title, sub, third;
+    Tone tone, sub_tone = Tone::NORMAL, third_tone = Tone::NORMAL;
+    int state;
     if (servers_.count == 1) {
-      // One server: its name, how long it is up (or its state in words) under it, and its uptime % under that.
+      // One server: its name, how long it is up (or its state in words), and its uptime percentage.
       tone = servers_.tone(first);
       state = first.up;
       title = first.name;
-      sub = first.up == STATE_UP && first.has_info ? servers_.detail(first, epoch) : servers_.state_text(first, epoch);
-      sub_tone = first.up == STATE_UP ? (servers_.slow(first) ? Tone::BUSY : Tone::NORMAL) : tone;
-      if (third_) {
-        ui::set_text(third_, servers_.uptime_text(first));
-        ui::set_tone(third_, servers_.low(first) ? Tone::BUSY : Tone::NORMAL, theme::MUTED);
+      if (first.up == STATE_UP) {
+        sub = first.has_info ? servers_.detail(first, epoch) : "";
+        if (sub.empty()) sub = plugin_->text("up");
+        sub_tone = servers_.slow(first) ? Tone::BUSY : Tone::NORMAL;
+      } else {
+        sub = servers_.state_text(first, epoch);
+        sub_tone = tone;
       }
+      third = servers_.uptime_text(first);
+      third_tone = servers_.low(first) ? Tone::BUSY : Tone::NORMAL;
     } else {
       // Several: what is the matter (or that all is well), and how many are up.
       tone = servers_.all();
       state = servers_.down ? STATE_DOWN : servers_.pending ? STATE_PENDING : servers_.all_well() ? STATE_UP : STATE_UNKNOWN;
       title = servers_.summary();
-      sub = tally;
+      sub = tessera::fill(tessera::fill(plugin_->text("tally"), "up", std::to_string(servers_.up)).c_str(), "all",
+                          std::to_string(servers_.count));
     }
     const uint32_t icon = state == STATE_UP ? ICON_CHECK : state == STATE_DOWN ? ICON_CROSS : state == STATE_PENDING ? ICON_DOTS : ICON_DASH;
-    ui::set_fill(badge_, tone, theme::TRACK);
+    tint(badge_, tone);
     ui::set_text(badge_icon_, ui::icon(icon));
-    ui::set_color(badge_icon_, tone == Tone::NORMAL ? theme::MUTED : theme::ON_ACCENT);
-    ui::set_text(big_, title);
-    ui::set_color(big_, state == STATE_UNKNOWN || state == STATE_PAUSED ? theme::MUTED : theme::INK);
-    ui::set_text(sub_, with_sub_ ? sub : std::string());
-    ui::set_tone(sub_, sub_tone, theme::MUTED);
+    ui::set_tone(badge_icon_, tone, theme::MUTED);
+    ui::set_text(title_, title);
+    ui::set_color(title_, state == STATE_UNKNOWN || state == STATE_PAUSED ? theme::MUTED : theme::INK);
+    if (sub_) {
+      ui::set_text(sub_, sub);
+      ui::set_tone(sub_, sub_tone, theme::MUTED);
+    }
+    if (third_) {
+      ui::set_text(third_, third);
+      ui::set_tone(third_, third_tone, theme::MUTED);
+    }
   }
 
-  void paint_list(const char *tally, uint32_t epoch) {
+  void paint_list(uint32_t epoch) {
     if (head_) {
-      const int tally_w = ui::text_width(tally, Font::TITLE) + ui::px(2);
+      const std::string tally = tessera::fill(
+          tessera::fill(plugin_->text("tally"), "up", std::to_string(servers_.up)).c_str(), "all", std::to_string(servers_.count));
+      const int tally_w = ui::text_width(tally, Font::BODY) + ui::px(2);
       ui::set_text(tally_, tally);
       lv_obj_set_width(tally_, tally_w);
       lv_obj_set_x(tally_, width_ - tally_w);
-      ui::set_text(head_icon_, ui::icon(icon_of(servers_)));
-      ui::set_tone(head_icon_, servers_.all(), theme::MUTED);
       ui::set_text(head_, servers_.summary());
       ui::set_tone(head_, servers_.all(), theme::INK);
-      const int head_x = ui::line_height(Font::ICON_SMALL) + ui::px(6);
-      lv_obj_set_width(head_, std::max(1, width_ - head_x - tally_w - ui::px(6)));
+      lv_obj_set_width(head_, std::max(1, width_ - tally_w - ui::px(8)));
     }
-    const int name_x = dot_ + ui::px(10);
+    // Two columns on the right, the same for every row: the percentages, and left of them how long it is up.
+    bool any_pct = false;
+    int time_w = 0;
+    std::string times[MAX_SERVERS], pcts[MAX_SERVERS];
+    for (int i = 0; i < slots_; i++) {
+      const Server &s = servers_.list[servers_.order[i]];
+      if (s.up == STATE_UP) {
+        times[i] = s.has_info ? servers_.detail(s, epoch) : "";
+        if (times[i].empty() && !s.has_uptime) times[i] = plugin_->text("up");
+        pcts[i] = servers_.uptime_text(s);
+      } else {
+        times[i] = servers_.state_text(s, epoch);
+      }
+      any_pct = any_pct || !pcts[i].empty();
+      time_w = std::max(time_w, ui::text_width(times[i], Font::BODY));
+    }
+    const int col_gap = ui::px(ui::large() ? 12 : 8);
+    const int pct_w = any_pct ? pct_w_ : 0;
+    time_w = std::min(time_w + ui::px(2), width_ / 2);
+    const int name_x = dot_ + ui::px(ui::large() ? 12 : 8);
+    const int time_x = width_ - pct_w - (pct_w ? col_gap : 0) - time_w;
     for (int i = 0; i < slots_; i++) {
       Slot &r = slot_[i];
       const Server &s = servers_.list[servers_.order[i]];
-      const std::string info = servers_.line(s, epoch);
-      const Tone tone = servers_.tone(s);
-      ui::set_fill(r.dot, tone, theme::MUTED);
+      tint(r.dot, servers_.tone(s));
+      lv_obj_set_style_bg_opa(r.dot, LV_OPA_COVER, 0);  // a dot is solid: it is too small to be faint
       ui::set_text(r.name, s.name);
-      ui::set_color(r.name, s.up == STATE_UNKNOWN || s.up == STATE_PAUSED ? theme::MUTED : theme::INK);  // no data or paused: steps back
-      ui::set_text(r.info, info);
-      ui::set_tone(r.info, servers_.line_tone(s), theme::MUTED);  // only what is wrong takes a colour
-      // The detail is as wide as its words; the name takes the room it leaves, and ends in dots when that is too little.
-      const int info_w = info.empty() ? 0 : std::min(width_ * 3 / 5, ui::text_width(info, Font::BODY) + ui::px(2));
-      lv_obj_set_width(r.info, std::max(1, info_w));
-      lv_obj_set_x(r.info, width_ - info_w);
-      lv_obj_set_width(r.name, std::max(1, width_ - name_x - info_w - (info_w ? ui::px(6) : 0)));
+      ui::set_color(r.name, s.up == STATE_UNKNOWN || s.up == STATE_PAUSED ? theme::MUTED : theme::INK);
+      lv_obj_set_width(r.name, std::max(1, time_x - name_x - col_gap));
+      ui::set_text(r.time, times[i]);
+      ui::set_tone(r.time, s.up == STATE_UP ? (servers_.slow(s) ? Tone::BUSY : Tone::NORMAL) : servers_.tone(s),
+                   theme::INK_SOFT);
+      lv_obj_set_width(r.time, std::max(1, time_w));
+      lv_obj_set_x(r.time, time_x);
+      ui::set_text(r.pct, pcts[i]);
+      ui::set_tone(r.pct, servers_.low(s) ? Tone::BUSY : Tone::NORMAL, theme::MUTED);
+      lv_obj_set_width(r.pct, std::max(1, pct_w));
+      lv_obj_set_x(r.pct, width_ - pct_w);
     }
   }
 
   ServerStatus *plugin_;
   Servers servers_;
-  int width_ = 0, height_ = 0, tile_ = -1, slots_ = 0, row_h_ = 0, dot_ = 0, top_ = 0, lines_n_ = 0;
-  bool single_ = false, with_sub_ = true, with_third_ = false;
+  int width_ = 0, height_ = 0, tile_ = -1, slots_ = 0, row_h_ = 0, pitch_ = 0, dot_ = 0, top_ = 0, pct_w_ = 0;
+  bool single_ = false;
   Slot slot_[MAX_SERVERS];
-  lv_obj_t *lines_[MAX_SERVERS + 1] = {};
-  lv_obj_t *note_{}, *badge_{}, *badge_icon_{}, *big_{}, *sub_{}, *third_{}, *head_icon_{}, *head_{}, *tally_{};
+  lv_obj_t *note_{}, *badge_{}, *badge_icon_{}, *title_{}, *sub_{}, *third_{}, *head_{}, *tally_{};
 };
 
 // The card a tap on the tile opens: every server on a raised block of its own. Its name with its state in its colour,

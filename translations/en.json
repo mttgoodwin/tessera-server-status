@@ -21,7 +21,8 @@
     "under_ms": "<1 ms",
     "one_pending": "{name} pending",
     "some_pending": "{n} pending | {n} pending",
-    "uptime_over": "{pct} over {window}"
+    "uptime_over": "{pct} over {window}",
+    "tally": "{up} of {all} up"
   },
   "app": {
     "name": "Server status",
